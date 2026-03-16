@@ -38,10 +38,11 @@ function getExt(dataUrl, fallback) {
 app.use(express.json({ limit: '50mb' }));
 
 // ─── Static files (sin caché para forzar actualizaciones) ────────────────────
+const MIME_TYPES = { mp4: 'video/mp4', mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', webm: 'video/webm' };
 app.use(express.static(path.join(__dirname, 'public'), {
     etag: false,
     lastModified: false,
-    setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+    setHeaders: (res, filePath) => { res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate'); const ext = filePath.split('.').pop().toLowerCase(); if (MIME_TYPES[ext]) res.setHeader('Content-Type', MIME_TYPES[ext]); }
 }));
 
 // ─── JWT ─────────────────────────────────────────────────────────────────────
@@ -224,7 +225,6 @@ async function handleLipSync(req, res) {
         const raw = req.body.audio_data;
         const ext = getExt(raw, 'mp3');
         input.audio_url  = saveBase64(stripDataUrl(raw), ext, req);
-        input.audio_type = ext === 'wav' ? 'wav' : 'mp3';
     } else {
         input.text     = req.body.tts_text || '';
         input.voice_id = req.body.voice_id || 'en_us_001';
