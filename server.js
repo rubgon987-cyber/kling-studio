@@ -164,7 +164,7 @@ async function handleGenerate(req, res) {
     }
 
     // Audio nativo — kling-v2-6 y kling-v3 (requiere mode: pro)
-    const audioModels = new Set(['kling-v2-6', 'kling-v3', 'kling-v3-omni']);
+    const audioModels = new Set(['kling-v2-6', 'kling-v3']);
     if (audioModels.has(model) && req.body.enable_audio !== false) {
         body.enable_audio   = true;
         body.generate_audio = true;
@@ -270,7 +270,7 @@ async function handleMotion(req, res) {
 
         // Audio: preservar del video de referencia O generar nativo (v2.6 y v3.0)
         body.keep_original_sound = req.body.keep_sound !== 'false' && req.body.keep_sound !== false;
-        if (model === 'kling-v2-6' || model === 'kling-v3' || model === 'kling-v3-omni') {
+        if (model === 'kling-v2-6' || model === 'kling-v3') {
             body.enable_audio   = true;
             body.generate_audio = true;
         }
