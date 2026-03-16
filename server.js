@@ -240,4 +240,4 @@ async function handleMulti(req, res) {
 }
 
 // ─── Start ───────────────────────────────────────────────────────────────────
-app.listen(PORT, () => console.log(`Kling Studio en http://localhost:${PORT}`));
+app.listen(PORT, () => console.log(`Kling Studio v6 en http://localhost:${PORT}`));
