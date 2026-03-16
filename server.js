@@ -5,7 +5,7 @@ const crypto  = require('crypto');
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const KLING_BASE = 'https://api-app-global.klingai.com';
+const KLING_BASE = 'https://api.klingai.com';
 
 // ─── Body parser: JSON con límite de 50MB para base64 ───────────────────────
 app.use(express.json({ limit: '50mb' }));
