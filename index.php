@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kling Studio — Generador de Videos IA</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="logo">
+            <span class="logo-icon">&#9654;</span>
+            <span class="logo-text">Kling Studio</span>
+        </div>
+        <nav class="nav">
+            <a class="nav-item active" onclick="showTab('generate',this)"><span>&#10022;</span> Generar Video</a>
+            <a class="nav-item" onclick="showTab('lipsync',this)"><span>&#128444;</span> Lip Sync</a>
+            <a class="nav-item" onclick="showTab('motion',this)"><span>&#127909;</span> Motion Control</a>
+            <a class="nav-item" onclick="showTab('multi',this)"><span>&#8862;</span> Multi-Imagen</a>
+            <a class="nav-item" onclick="showTab('gallery',this)"><span>&#9638;</span> Mis Videos</a>
+            <a class="nav-item" onclick="showTab('settings',this)"><span>&#9881;</span> Configuracion</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="credits-box">
+                <div class="credits-label">Estado API</div>
+                <div class="credits-value" id="credits-display">Sin configurar</div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main">
+
+        <!-- ═══════════════════════════════
+             GENERAR VIDEO
+        ═══════════════════════════════ -->
+        <div id="tab-generate" class="tab-content active">
+            <div class="page-header">
+                <h1>Generar Video</h1>
+                <p>Texto o imagen como base para tu video IA</p>
+            </div>
+            <div class="generator-grid">
+                <div class="controls-panel">
+
+                    <div class="field-group">
+                        <label>Modo</label>
+                        <div class="mode-selector">
+                            <button class="mode-btn active" onclick="setMode('text')" id="btn-mode-text">&#10022; Texto a Video</button>
+                            <button class="mode-btn" onclick="setMode('image')" id="btn-mode-image">&#128247; Imagen a Video</button>
+                        </div>
+                    </div>
+
+                    <!-- IMAGEN (solo modo imagen) -->
+                    <div class="field-group hidden" id="field-image">
+                        <label>Imagen de inicio</label>
+                        <label class="upload-area">
+                            <span class="upload-icon">&#8679;</span>
+                            <span>Click para subir imagen</span>
+                            <span class="upload-hint">JPG, PNG — max 10MB</span>
+                            <input type="file" id="image-input" accept="image/*" class="file-hidden" onchange="previewImage(this,'image-preview')">
+                        </label>
+                        <img id="image-preview" class="img-preview hidden">
+                    </div>
+
+                    <div class="field-group">
+                        <label>Descripcion del video <span class="hint">ingles da mejores resultados</span></label>
+                        <textarea id="prompt" rows="4" placeholder="A cinematic shot of a golden sunset over the ocean, 4K, dramatic lighting..."></textarea>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Prompt negativo <span class="hint">opcional</span></label>
+                        <input type="text" id="negative-prompt" placeholder="blurry, low quality, distorted...">
+                    </div>
+
+                    <div class="field-group">
+                        <label>Modelo</label>
+                        <select id="model" onchange="updateCost()">
+                            <option value="kling-v1-5" data-c5="0.07" data-c10="0.14">Kling 1.5 — Estandar</option>
+                            <option value="kling-v1-6" data-c5="0.10" data-c10="0.20">Kling 1.6 — Mejorado</option>
+                            <option value="kling-v2-0" data-c5="0.14" data-c10="0.28">Kling 2.0 — Avanzado</option>
+                            <option value="kling-v2-1" data-c5="0.28" data-c10="0.56">Kling 2.1 — Premium</option>
+                            <option value="kling-v3" data-c5="0.42" data-c10="0.84" selected>Kling 3.0 — Ultra</option>
+                        </select>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label>Duracion</label>
+                            <div class="toggle-group">
+                                <button class="toggle-btn active" onclick="setDuration(5)" id="dur-5">5 seg</button>
+                                <button class="toggle-btn" onclick="setDuration(10)" id="dur-10">10 seg</button>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label>Calidad</label>
+                            <div class="toggle-group">
+                                <button class="toggle-btn active" onclick="setQuality('std')" id="q-std">Standard</button>
+                                <button class="toggle-btn" onclick="setQuality('pro')" id="q-pro">Pro</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Relacion de aspecto</label>
+                        <div class="aspect-selector">
+                            <button class="aspect-btn active" onclick="setAspect('16:9')" id="asp-169">16:9<br><small>Horizontal</small></button>
+                            <button class="aspect-btn" onclick="setAspect('9:16')" id="asp-916">9:16<br><small>Vertical</small></button>
+                            <button class="aspect-btn" onclick="setAspect('1:1')" id="asp-11">1:1<br><small>Cuadrado</small></button>
+                        </div>
+                    </div>
+
+                    <div class="cost-box">
+                        <div>
+                            <div class="cost-label">Costo estimado</div>
+                            <div class="cost-note" id="cost-note">Kling 3.0 · 5 seg</div>
+                        </div>
+                        <div class="cost-value" id="cost-display">$0.42</div>
+                    </div>
+
+                    <button class="btn-generate" id="btn-generate" onclick="generateVideo()">
+                        <span id="btn-label">&#9654; Generar Video</span>
+                    </button>
+                </div>
+
+                <div class="preview-panel">
+                    <div class="preview-box">
+                        <div class="preview-placeholder" id="preview-placeholder">
+                            <div class="preview-icon">&#9654;</div>
+                            <div>Tu video aparecera aqui</div>
+                        </div>
+                        <div class="generating hidden" id="generating">
+                            <div class="spinner"></div>
+                            <div class="gen-text">Generando video...</div>
+                            <div class="gen-subtext" id="gen-status">Conectando con Kling</div>
+                            <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+                        </div>
+                        <video id="result-video" class="hidden" controls autoplay loop></video>
+                    </div>
+                    <div class="video-actions hidden" id="video-actions">
+                        <button class="btn-action" onclick="downloadVideo('result-video')">&#8595; Descargar</button>
+                        <button class="btn-action secondary" onclick="resetPreview()">&#10022; Nuevo</button>
+                    </div>
+                    <div class="model-info">
+                        <div class="model-info-title">Guia de modelos</div>
+                        <div class="model-cards">
+                            <div class="model-card">
+                                <div class="model-name">Kling 1.5</div>
+                                <div class="model-desc">Pruebas rapidas y bajo presupuesto</div>
+                                <div class="model-price">desde $0.07</div>
+                            </div>
+                            <div class="model-card">
+                                <div class="model-name">Kling 2.1</div>
+                                <div class="model-desc">Equilibrio calidad/precio</div>
+                                <div class="model-price">desde $0.28</div>
+                            </div>
+                            <div class="model-card highlight">
+                                <div class="model-name">Kling 3.0 &#10022;</div>
+                                <div class="model-desc">Maxima calidad y realismo</div>
+                                <div class="model-price">desde $0.42</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════
+             LIP SYNC
+        ═══════════════════════════════ -->
+        <div id="tab-lipsync" class="tab-content hidden">
+            <div class="page-header">
+                <h1>Lip Sync — Sincronizador de Labios</h1>
+                <p>Anima los labios de una persona con tu audio</p>
+            </div>
+            <div class="generator-grid">
+                <div class="controls-panel">
+
+                    <div class="field-group">
+                        <label>Fuente de entrada</label>
+                        <div class="mode-selector">
+                            <button class="mode-btn active" onclick="setLipMode('image')" id="lip-btn-image">&#128247; Foto + Audio</button>
+                            <button class="mode-btn" onclick="setLipMode('video')" id="lip-btn-video">&#127902; Video + Audio</button>
+                        </div>
+                    </div>
+
+                    <div class="field-group" id="lip-field-image">
+                        <label>Foto de la persona</label>
+                        <label class="upload-area">
+                            <span class="upload-icon">&#8679;</span>
+                            <span>Sube una foto con cara visible</span>
+                            <span class="upload-hint">JPG, PNG — rostro claro y frontal</span>
+                            <input type="file" id="lip-image-input" accept="image/*" class="file-hidden" onchange="previewImage(this,'lip-image-preview')">
+                        </label>
+                        <img id="lip-image-preview" class="img-preview hidden">
+                    </div>
+
+                    <div class="field-group hidden" id="lip-field-video">
+                        <label>Video de la persona</label>
+                        <label class="upload-area">
+                            <span class="upload-icon">&#8679;</span>
+                            <span>Sube un video con cara visible</span>
+                            <span class="upload-hint">MP4 — max 30 seg</span>
+                            <input type="file" id="lip-video-input" accept="video/*" class="file-hidden">
+                        </label>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Audio (voz)</label>
+                        <label class="upload-area">
+                            <span class="upload-icon">&#127908;</span>
+                            <span>Sube el audio de la voz</span>
+                            <span class="upload-hint">MP3, WAV — max 2 minutos</span>
+                            <input type="file" id="lip-audio-input" accept="audio/*" class="file-hidden" onchange="showAudioName(this)">
+                        </label>
+                        <div id="audio-name" class="upload-hint" style="margin-top:6px"></div>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Modo de audio</label>
+                        <select id="lip-audio-mode" onchange="toggleTTS(this.value)">
+                            <option value="audio2video">Audio a Video (sincroniza audio subido)</option>
+                            <option value="text2video">Texto a Video (genera voz desde texto)</option>
+                        </select>
+                    </div>
+
+                    <div class="field-group hidden" id="lip-tts-field">
+                        <label>Texto que dira la persona</label>
+                        <textarea id="lip-tts-text" rows="3" placeholder="Escribe lo que dira..."></textarea>
+                    </div>
+
+                    <div class="cost-box">
+                        <div><div class="cost-label">Costo estimado</div><div class="cost-note">por segundo de audio</div></div>
+                        <div class="cost-value">~$0.07/seg</div>
+                    </div>
+
+                    <button class="btn-generate" onclick="generateLipSync()">
+                        &#128444; Sincronizar Labios
+                    </button>
+                </div>
+
+                <div class="preview-panel">
+                    <div class="preview-box">
+                        <div class="preview-placeholder" id="lip-placeholder">
+                            <div class="preview-icon">&#128444;</div>
+                            <div>El video animado aparecera aqui</div>
+                        </div>
+                        <div class="generating hidden" id="lip-generating">
+                            <div class="spinner"></div>
+                            <div class="gen-text">Sincronizando labios...</div>
+                            <div class="gen-subtext" id="lip-status">Procesando</div>
+                            <div class="progress-bar"><div class="progress-fill"></div></div>
+                        </div>
+                        <video id="lip-result-video" class="hidden" controls autoplay loop></video>
+                    </div>
+                    <div class="video-actions hidden" id="lip-video-actions">
+                        <button class="btn-action" onclick="downloadVideo('lip-result-video')">&#8595; Descargar</button>
+                        <button class="btn-action secondary" onclick="resetLip()">&#10022; Nuevo</button>
+                    </div>
+                    <div class="info-box">
+                        <div class="info-box-title">&#128161; Consejos para mejores resultados</div>
+                        <ul class="info-list">
+                            <li>Usa fotos frontales con buena iluminacion</li>
+                            <li>El audio debe ser voz clara, sin musica de fondo</li>
+                            <li>Evita fotos con accesorios que cubran la boca</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════
+             MOTION CONTROL
+        ═══════════════════════════════ -->
+        <div id="tab-motion" class="tab-content hidden">
+            <div class="page-header">
+                <h1>Motion Control — Control de Camara</h1>
+                <p>Define el movimiento de camara en tu video</p>
+            </div>
+            <div class="generator-grid">
+                <div class="controls-panel">
+
+                    <div class="field-group">
+                        <label>Imagen base <span class="hint">requerida</span></label>
+                        <label class="upload-area">
+                            <span class="upload-icon">&#8679;</span>
+                            <span>Sube la imagen de partida</span>
+                            <span class="upload-hint">JPG, PNG</span>
+                            <input type="file" id="motion-image-input" accept="image/*" class="file-hidden" onchange="previewImage(this,'motion-img-preview')">
+                        </label>
+                        <img id="motion-img-preview" class="img-preview hidden">
+                    </div>
+
+                    <div class="field-group">
+                        <label>Video de referencia <span class="hint">opcional — sincroniza el movimiento</span></label>
+                        <label class="upload-area">
+                            <span class="upload-icon">&#127902;</span>
+                            <span>Sube el video cuyo movimiento quieres copiar</span>
+                            <span class="upload-hint">MP4, MOV — max 30 seg</span>
+                            <input type="file" id="motion-video-input" accept="video/*" class="file-hidden" onchange="showMotionVideoName(this)">
+                        </label>
+                        <div id="motion-video-name" class="upload-hint" style="margin-top:6px"></div>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Descripcion del video</label>
+                        <textarea id="motion-prompt" rows="3" placeholder="A landscape slowly revealed by camera movement..."></textarea>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Modelo y duracion</label>
+                        <div class="info-tag">Kling 1.5 · Pro · 5 seg — unica configuracion compatible con Camera Control</div>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Movimiento de camara</label>
+                        <div class="camera-grid">
+                            <div class="camera-control">
+                                <div class="camera-label">&#8596; Horizontal (pan)</div>
+                                <input type="range" id="cam-horizontal" min="-10" max="10" value="0" oninput="updateCamLabel('cam-horizontal','cam-h-val')">
+                                <div class="cam-value-row"><span>&#8592; Izquierda</span><span id="cam-h-val" class="cam-val">0</span><span>Derecha &#8594;</span></div>
+                            </div>
+                            <div class="camera-control">
+                                <div class="camera-label">&#8597; Vertical (tilt)</div>
+                                <input type="range" id="cam-vertical" min="-10" max="10" value="0" oninput="updateCamLabel('cam-vertical','cam-v-val')">
+                                <div class="cam-value-row"><span>&#8595; Bajar</span><span id="cam-v-val" class="cam-val">0</span><span>Subir &#8593;</span></div>
+                            </div>
+                            <div class="camera-control">
+                                <div class="camera-label">&#128269; Zoom</div>
+                                <input type="range" id="cam-zoom" min="-10" max="10" value="0" oninput="updateCamLabel('cam-zoom','cam-z-val')">
+                                <div class="cam-value-row"><span>&#8722; Alejar</span><span id="cam-z-val" class="cam-val">0</span><span>Acercar +</span></div>
+                            </div>
+                            <div class="camera-control">
+                                <div class="camera-label">&#8635; Rotacion (roll)</div>
+                                <input type="range" id="cam-roll" min="-10" max="10" value="0" oninput="updateCamLabel('cam-roll','cam-r-val')">
+                                <div class="cam-value-row"><span>&#8634; Anti-horario</span><span id="cam-r-val" class="cam-val">0</span><span>Horario &#8635;</span></div>
+                            </div>
+                        </div>
+                        <div style="margin-top:12px">
+                            <label class="field-group" style="margin-bottom:6px">Presets rapidos</label>
+                            <div class="preset-grid">
+                                <button class="preset-btn" onclick="applyPreset('zoom_in')">Zoom In</button>
+                                <button class="preset-btn" onclick="applyPreset('zoom_out')">Zoom Out</button>
+                                <button class="preset-btn" onclick="applyPreset('pan_left')">Pan Izq</button>
+                                <button class="preset-btn" onclick="applyPreset('pan_right')">Pan Der</button>
+                                <button class="preset-btn" onclick="applyPreset('tilt_up')">Tilt Up</button>
+                                <button class="preset-btn" onclick="applyPreset('orbit')">Orbita</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cost-box">
+                        <div><div class="cost-label">Costo estimado</div><div class="cost-note">Kling 1.5 · Pro · 5 seg</div></div>
+                        <div class="cost-value" id="motion-cost">$0.07</div>
+                    </div>
+
+                    <button class="btn-generate" onclick="generateMotion()">
+                        &#127909; Generar con Motion Control
+                    </button>
+                </div>
+
+                <div class="preview-panel">
+                    <div class="preview-box">
+                        <div class="preview-placeholder" id="motion-placeholder">
+                            <div class="preview-icon">&#127909;</div>
+                            <div>El video con movimiento aparecera aqui</div>
+                        </div>
+                        <div class="generating hidden" id="motion-generating">
+                            <div class="spinner"></div>
+                            <div class="gen-text">Aplicando Motion Control...</div>
+                            <div class="gen-subtext" id="motion-status">Procesando</div>
+                            <div class="progress-bar"><div class="progress-fill"></div></div>
+                        </div>
+                        <video id="motion-result-video" class="hidden" controls autoplay loop></video>
+                    </div>
+                    <div class="video-actions hidden" id="motion-video-actions">
+                        <button class="btn-action" onclick="downloadVideo('motion-result-video')">&#8595; Descargar</button>
+                        <button class="btn-action secondary" onclick="resetMotion()">&#10022; Nuevo</button>
+                    </div>
+                    <div class="info-box">
+                        <div class="info-box-title">&#127909; Guia de movimientos</div>
+                        <ul class="info-list">
+                            <li><b>Pan:</b> mueve la camara horizontalmente</li>
+                            <li><b>Tilt:</b> inclina la camara arriba/abajo</li>
+                            <li><b>Zoom:</b> acerca o aleja el sujeto</li>
+                            <li><b>Roll:</b> rota la camara en su eje</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════
+             MULTI-IMAGEN
+        ═══════════════════════════════ -->
+        <div id="tab-multi" class="tab-content hidden">
+            <div class="page-header">
+                <h1>Multi-Imagen a Video</h1>
+                <p>Combina varias imagenes para crear un video</p>
+            </div>
+            <div class="generator-grid">
+                <div class="controls-panel">
+
+                    <div class="field-group">
+                        <label>Imagenes (hasta 4) <span class="hint">se combinan en el video</span></label>
+                        <div class="multi-upload-grid">
+                            <label class="multi-slot" id="slot-0">
+                                <span class="slot-icon">+</span>
+                                <span class="slot-text">Imagen 1</span>
+                                <img id="multi-preview-0" class="hidden" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px;">
+                                <input type="file" accept="image/*" class="file-hidden" id="multi-file-0" onchange="previewMulti(0)">
+                            </label>
+                            <label class="multi-slot" id="slot-1">
+                                <span class="slot-icon">+</span>
+                                <span class="slot-text">Imagen 2</span>
+                                <img id="multi-preview-1" class="hidden" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px;">
+                                <input type="file" accept="image/*" class="file-hidden" id="multi-file-1" onchange="previewMulti(1)">
+                            </label>
+                            <label class="multi-slot" id="slot-2">
+                                <span class="slot-icon">+</span>
+                                <span class="slot-text">Imagen 3</span>
+                                <img id="multi-preview-2" class="hidden" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px;">
+                                <input type="file" accept="image/*" class="file-hidden" id="multi-file-2" onchange="previewMulti(2)">
+                            </label>
+                            <label class="multi-slot" id="slot-3">
+                                <span class="slot-icon">+</span>
+                                <span class="slot-text">Imagen 4</span>
+                                <img id="multi-preview-3" class="hidden" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px;">
+                                <input type="file" accept="image/*" class="file-hidden" id="multi-file-3" onchange="previewMulti(3)">
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Descripcion del video</label>
+                        <textarea id="multi-prompt" rows="4" placeholder="Describe como quieres que se combinen las imagenes..."></textarea>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Prompt negativo <span class="hint">opcional</span></label>
+                        <input type="text" id="multi-neg-prompt" placeholder="blurry, low quality...">
+                    </div>
+
+                    <div class="field-group">
+                        <label>Modelo</label>
+                        <select id="multi-model">
+                            <option value="kling-v2-1" selected>Kling 2.1 — Recomendado</option>
+                            <option value="kling-v3">Kling 3.0 — Maxima calidad</option>
+                        </select>
+                    </div>
+
+                    <div class="field-row">
+                        <div class="field-group">
+                            <label>Duracion</label>
+                            <div class="toggle-group">
+                                <button class="toggle-btn active" onclick="setMultiDuration(5)" id="multidur-5">5 seg</button>
+                                <button class="toggle-btn" onclick="setMultiDuration(10)" id="multidur-10">10 seg</button>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label>Aspecto</label>
+                            <div class="aspect-selector">
+                                <button class="aspect-btn active" onclick="setMultiAspect('16:9')" id="masp-169">16:9</button>
+                                <button class="aspect-btn" onclick="setMultiAspect('9:16')" id="masp-916">9:16</button>
+                                <button class="aspect-btn" onclick="setMultiAspect('1:1')" id="masp-11">1:1</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="cost-box">
+                        <div><div class="cost-label">Costo estimado</div><div class="cost-note">Kling 2.1 · Multi-imagen</div></div>
+                        <div class="cost-value">$0.28</div>
+                    </div>
+
+                    <button class="btn-generate" onclick="generateMulti()">
+                        &#8862; Generar desde Multiples Imagenes
+                    </button>
+                </div>
+
+                <div class="preview-panel">
+                    <div class="preview-box">
+                        <div class="preview-placeholder" id="multi-placeholder">
+                            <div class="preview-icon">&#8862;</div>
+                            <div>El video combinado aparecera aqui</div>
+                        </div>
+                        <div class="generating hidden" id="multi-generating">
+                            <div class="spinner"></div>
+                            <div class="gen-text">Combinando imagenes...</div>
+                            <div class="gen-subtext" id="multi-status">Procesando</div>
+                            <div class="progress-bar"><div class="progress-fill"></div></div>
+                        </div>
+                        <video id="multi-result-video" class="hidden" controls autoplay loop></video>
+                    </div>
+                    <div class="video-actions hidden" id="multi-video-actions">
+                        <button class="btn-action" onclick="downloadVideo('multi-result-video')">&#8595; Descargar</button>
+                        <button class="btn-action secondary" onclick="resetMulti()">&#10022; Nuevo</button>
+                    </div>
+                    <div class="info-box">
+                        <div class="info-box-title">&#128161; Como usar Multi-Imagen</div>
+                        <ul class="info-list">
+                            <li>Sube de 2 a 4 imagenes relacionadas</li>
+                            <li>La IA las combina fluidamente en un video</li>
+                            <li>Ideal para portfolios y productos</li>
+                            <li>Describe la transicion que quieres</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════
+             GALERIA
+        ═══════════════════════════════ -->
+        <div id="tab-gallery" class="tab-content hidden">
+            <div class="page-header">
+                <h1>Mis Videos</h1>
+                <p>Historial de videos generados</p>
+            </div>
+            <div class="gallery-grid" id="gallery-grid">
+                <div class="gallery-empty">
+                    <div style="font-size:48px;opacity:0.3">&#9654;</div>
+                    <p>Aun no has generado videos</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════
+             CONFIGURACION
+        ═══════════════════════════════ -->
+        <div id="tab-settings" class="tab-content hidden">
+            <div class="page-header">
+                <h1>Configuracion</h1>
+                <p>Conecta tu API de Kling AI</p>
+            </div>
+            <div class="settings-panel">
+                <div class="field-group">
+                    <label>Kling API Key (Access Key ID)</label>
+                    <div class="api-input-row">
+                        <input type="password" id="api-key-input" placeholder="ak_xxxxxxxxxxxxxxxx">
+                        <button class="btn-save" onclick="saveApiKey()">Guardar</button>
+                    </div>
+                    <div class="field-hint">Tu identificador — empieza con "ak_"</div>
+                </div>
+                <div class="field-group">
+                    <label>Kling API Secret (Access Key Secret)</label>
+                    <div class="api-input-row">
+                        <input type="password" id="api-secret-input" placeholder="sk_xxxxxxxxxxxxxxxx">
+                        <button class="btn-save" onclick="saveApiKey()">Guardar</button>
+                    </div>
+                    <div class="field-hint">Tu contrasena privada — empieza con "sk_"</div>
+                </div>
+                <div class="api-status" id="api-status"></div>
+
+                <div class="settings-info">
+                    <div class="info-title">Tabla de precios Kling</div>
+                    <table class="price-table">
+                        <thead>
+                            <tr><th>Modelo</th><th>5 seg</th><th>10 seg</th><th>Uso ideal</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Kling 1.5</td><td>$0.07</td><td>$0.14</td><td>Pruebas rapidas</td></tr>
+                            <tr><td>Kling 1.6</td><td>$0.10</td><td>$0.20</td><td>Motion Control</td></tr>
+                            <tr><td>Kling 2.0</td><td>$0.14</td><td>$0.28</td><td>Calidad media</td></tr>
+                            <tr><td>Kling 2.1</td><td>$0.28</td><td>$0.56</td><td>Multi-imagen</td></tr>
+                            <tr><td>Kling 3.0</td><td>$0.42</td><td>$0.84</td><td>Maxima calidad</td></tr>
+                            <tr><td>Lip Sync</td><td colspan="2">~$0.07/seg audio</td><td>Labios animados</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+</div>
+<script src="js/app.js"></script>
+</body>
+</html>
