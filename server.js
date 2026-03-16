@@ -26,8 +26,12 @@ function saveBase64(base64, ext, req) {
 
 // Detecta extension de base64 data-URL
 function getExt(dataUrl, fallback) {
-    const m = dataUrl.match(/^data:(w+)/(w+);/);
-    return m ? m[2].replace('jpeg','jpg') : fallback;
+    if (!dataUrl || !dataUrl.startsWith('data:')) return fallback;
+    const semi = dataUrl.indexOf(';');
+    const slash = dataUrl.lastIndexOf('/', semi);
+    if (slash < 0 || semi < 0) return fallback;
+    const ext = dataUrl.substring(slash + 1, semi);
+    return ext === 'jpeg' ? 'jpg' : (ext || fallback);
 }
 
 // ─── Body parser: JSON con límite de 50MB para base64 ───────────────────────
