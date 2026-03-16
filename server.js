@@ -1,31 +1,18 @@
-const express  = require('express');
-const multer   = require('multer');
-const path     = require('path');
-const fs       = require('fs');
-const crypto   = require('crypto');
+const express = require('express');
+const multer  = require('multer');
+const path    = require('path');
+const crypto  = require('crypto');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
 const KLING_BASE = 'https://api-app-global.klingai.com';
 
-// ─── Uploads dir ────────────────────────────────────────────────────────────
-const UPLOAD_DIR = path.join(__dirname, 'uploads');
-try {
-    if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-} catch (e) {
-    console.warn('No se pudo crear uploads/, usando /tmp:', e.message);
-}
-
-// ─── Multer storage (v2 async API) ───────────────────────────────────────────
-const storage = multer.diskStorage({
-    destination: async (req, file) => UPLOAD_DIR,
-    filename:    async (req, file) => {
-        const ext = path.extname(file.originalname);
-        return 'kling_' + Date.now() + '_' + Math.random().toString(36).slice(2) + ext;
-    }
+// ─── Multer: memoria, sin disco, sin permisos ────────────────────────────────
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits:  { fileSize: 50 * 1024 * 1024 }
 });
-const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
 
 const uploadFields = upload.fields([
     { name: 'image',     maxCount: 1 },
@@ -37,7 +24,6 @@ const uploadFields = upload.fields([
 
 // ─── Static files ────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(UPLOAD_DIR));
 
 // ─── JWT ─────────────────────────────────────────────────────────────────────
 function makeJWT(key, secret) {
@@ -54,53 +40,31 @@ function b64u(data) {
     return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+// ─── Archivo a base64 para la API de Kling ───────────────────────────────────
+function fileToBase64(file) {
+    return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+}
+
 // ─── Kling API call ──────────────────────────────────────────────────────────
 async function klingCall(method, endpoint, token, body = null) {
-    const url  = KLING_BASE + endpoint;
-    const opts = {
+    const res  = await fetch(KLING_BASE + endpoint, {
         method,
         headers: {
             'Content-Type':  'application/json',
             'Authorization': 'Bearer ' + token,
         },
-    };
-    if (body) opts.body = JSON.stringify(body);
-
-    const res  = await fetch(url, opts);
-    const data = await res.json();
-
-    if (!res.ok) {
-        throw new Error((data.message || '') + ' (HTTP ' + res.status + ')');
-    }
-    if (data.code !== undefined && data.code !== 0) {
-        throw new Error('[' + data.code + '] ' + (data.message || 'Error de API Kling'));
-    }
-    return data;
-}
-
-// ─── File URL helper ─────────────────────────────────────────────────────────
-function fileUrl(req, filename) {
-    const proto = req.headers['x-forwarded-proto'] || req.protocol;
-    const host  = req.headers['x-forwarded-host']  || req.get('host');
-    return `${proto}://${host}/uploads/${filename}`;
-}
-
-// ─── Cleanup old uploads (>1h) ───────────────────────────────────────────────
-function cleanOldFiles() {
-    const limit = Date.now() - 3600 * 1000;
-    fs.readdirSync(UPLOAD_DIR).forEach(f => {
-        if (!f.startsWith('kling_')) return;
-        try {
-            const stat = fs.statSync(path.join(UPLOAD_DIR, f));
-            if (stat.mtimeMs < limit) fs.unlinkSync(path.join(UPLOAD_DIR, f));
-        } catch (_) {}
+        body: body ? JSON.stringify(body) : undefined,
     });
+    const data = await res.json();
+    if (!res.ok) throw new Error((data.message || '') + ' (HTTP ' + res.status + ')');
+    if (data.code !== undefined && data.code !== 0)
+        throw new Error('[' + data.code + '] ' + (data.message || 'Error de API Kling'));
+    return data;
 }
 
 // ─── Credentials ─────────────────────────────────────────────────────────────
 function getCredentials(body) {
-    const k = body.api_key;
-    const s = body.api_secret;
+    const k = body.api_key, s = body.api_secret;
     if (!k || !s) throw new Error('API Key y Secret son requeridos');
     return [k, s];
 }
@@ -109,24 +73,28 @@ function getCredentials(body) {
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════════════════
 app.get('/api/health', (req, res) => {
-    res.json({ ok: true, node: process.version, uptime: process.uptime() });
+    res.json({ ok: true, node: process.version, uptime: Math.round(process.uptime()) });
 });
-app.post('/api/:action', uploadFields, async (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    const { action } = req.params;
 
-    try {
-        switch (action) {
-            case 'generate': return await handleGenerate(req, res);
-            case 'lipsync':  return await handleLipSync(req, res);
-            case 'motion':   return await handleMotion(req, res);
-            case 'multi':    return await handleMulti(req, res);
-            default: throw new Error('Accion desconocida: ' + action);
-        }
-    } catch (e) {
-        res.json({ error: e.message });
-    }
-});
+// Multer error handler wrapper
+function withUpload(handler) {
+    return (req, res) => {
+        uploadFields(req, res, async (err) => {
+            res.setHeader('Content-Type', 'application/json');
+            if (err) return res.status(400).json({ error: 'Upload error: ' + err.message });
+            try {
+                await handler(req, res);
+            } catch (e) {
+                res.status(500).json({ error: e.message });
+            }
+        });
+    };
+}
+
+app.post('/api/generate', withUpload(handleGenerate));
+app.post('/api/lipsync',  withUpload(handleLipSync));
+app.post('/api/motion',   withUpload(handleMotion));
+app.post('/api/multi',    withUpload(handleMulti));
 
 app.get('/api/status', async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
@@ -135,13 +103,11 @@ app.get('/api/status', async (req, res) => {
         if (!task_id || !api_key || !api_secret) throw new Error('Parametros incompletos');
 
         const token = makeJWT(api_key, api_secret);
-
         const endpointMap = {
             'text2video':  '/v1/videos/text2video/',
             'image2video': '/v1/videos/image2video/',
             'lip-sync':    '/v1/videos/lip-sync/',
         };
-
         const endpoints = (task_type && endpointMap[task_type])
             ? [endpointMap[task_type]]
             : Object.values(endpointMap);
@@ -153,9 +119,7 @@ app.get('/api/status', async (req, res) => {
                 if (!status) continue;
                 const url = data.data?.task_result?.videos?.[0]?.url ?? null;
                 return res.json({ status, video_url: url });
-            } catch (_) {
-                continue;
-            }
+            } catch (_) { continue; }
         }
         res.json({ status: 'processing', video_url: null });
     } catch (e) {
@@ -163,9 +127,10 @@ app.get('/api/status', async (req, res) => {
     }
 });
 
-app.post('/api/cleanup', (req, res) => {
-    cleanOldFiles();
-    res.json({ ok: true });
+// Global error handler — siempre devuelve JSON, nunca HTML
+app.use((err, req, res, next) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.status(500).json({ error: err.message || 'Error interno del servidor' });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -174,26 +139,21 @@ app.post('/api/cleanup', (req, res) => {
 async function handleGenerate(req, res) {
     const [apiKey, apiSecret] = getCredentials(req.body);
     const token    = makeJWT(apiKey, apiSecret);
-    const mode     = req.body.mode     || 'text';
-    const model    = req.body.model    || 'kling-v1-6';
-    const prompt   = req.body.prompt   || '';
-    const negPrmpt = req.body.negative_prompt || '';
-    const duration = req.body.duration || '5';
-    const aspect   = req.body.aspect_ratio    || '16:9';
-    const quality  = req.body.quality  || 'std';
+    const mode     = req.body.mode    || 'text';
+    const model    = req.body.model   || 'kling-v1-6';
+    const quality  = req.body.quality || 'std';
 
     let endpoint, taskType, body;
 
     if (mode === 'image') {
         const imgFile = req.files?.image?.[0];
         if (!imgFile) throw new Error('Imagen no recibida');
-        cleanOldFiles();
         body = {
             model_name:      model,
-            image:           fileUrl(req, imgFile.filename),
-            prompt,
-            negative_prompt: negPrmpt,
-            duration,
+            image:           fileToBase64(imgFile),
+            prompt:          req.body.prompt          || '',
+            negative_prompt: req.body.negative_prompt || '',
+            duration:        req.body.duration        || '5',
             mode:            quality,
             cfg_scale:       0.5,
         };
@@ -202,10 +162,10 @@ async function handleGenerate(req, res) {
     } else {
         body = {
             model_name:      model,
-            prompt,
-            negative_prompt: negPrmpt,
-            duration,
-            aspect_ratio:    aspect,
+            prompt:          req.body.prompt          || '',
+            negative_prompt: req.body.negative_prompt || '',
+            duration:        req.body.duration        || '5',
+            aspect_ratio:    req.body.aspect_ratio    || '16:9',
             mode:            quality,
             cfg_scale:       0.5,
         };
@@ -213,7 +173,7 @@ async function handleGenerate(req, res) {
         taskType = 'text2video';
     }
 
-    const data = await klingCall('POST', endpoint, token, body);
+    const data   = await klingCall('POST', endpoint, token, body);
     const taskId = data.data?.task_id;
     if (!taskId) throw new Error(data.message || 'No se recibio task_id');
     res.json({ task_id: taskId, task_type: taskType });
@@ -230,23 +190,22 @@ async function handleLipSync(req, res) {
     if (lipMode === 'image') {
         const imgFile = req.files?.image?.[0];
         if (!imgFile) throw new Error('Foto no recibida');
-        body.image = fileUrl(req, imgFile.filename);
+        body.image = fileToBase64(imgFile);
     } else {
         const vidFile = req.files?.video?.[0];
         if (!vidFile) throw new Error('Video no recibido');
-        body.video = fileUrl(req, vidFile.filename);
+        body.video = fileToBase64(vidFile);
     }
 
     if (audioMode === 'audio2video') {
         const audFile = req.files?.audio?.[0];
         if (!audFile) throw new Error('Audio no recibido');
-        body.audio = fileUrl(req, audFile.filename);
+        body.audio = fileToBase64(audFile);
     } else {
         body.text     = req.body.tts_text || '';
         body.voice_id = 'en_us_001';
     }
 
-    cleanOldFiles();
     const data   = await klingCall('POST', '/v1/videos/lip-sync', token, body);
     const taskId = data.data?.task_id;
     if (!taskId) throw new Error(data.message || 'Error en Lip Sync');
@@ -261,7 +220,7 @@ async function handleMotion(req, res) {
 
     const body = {
         model_name: 'kling-v1-5',
-        image:      fileUrl(req, imgFile.filename),
+        image:      fileToBase64(imgFile),
         prompt:     req.body.prompt || '',
         duration:   '5',
         mode:       'pro',
@@ -280,9 +239,8 @@ async function handleMotion(req, res) {
     };
 
     const refFile = req.files?.ref_video?.[0];
-    if (refFile) body.video_reference = fileUrl(req, refFile.filename);
+    if (refFile) body.video_reference = fileToBase64(refFile);
 
-    cleanOldFiles();
     const data   = await klingCall('POST', '/v1/videos/image2video', token, body);
     const taskId = data.data?.task_id;
     if (!taskId) throw new Error(data.message || 'Error en Motion Control');
@@ -296,12 +254,10 @@ async function handleMulti(req, res) {
 
     if (images.length < 2) throw new Error('Se necesitan al menos 2 imagenes');
 
-    const urls = images.map(f => fileUrl(req, f.filename));
-
     const body = {
         model_name:      req.body.model    || 'kling-v2-1',
-        image:           urls[0],
-        image_tail:      urls[urls.length - 1],
+        image:           fileToBase64(images[0]),
+        image_tail:      fileToBase64(images[images.length - 1]),
         prompt:          req.body.prompt   || '',
         negative_prompt: req.body.negative_prompt || '',
         duration:        req.body.duration || '5',
@@ -309,7 +265,6 @@ async function handleMulti(req, res) {
         cfg_scale:       0.5,
     };
 
-    cleanOldFiles();
     const data   = await klingCall('POST', '/v1/videos/image2video', token, body);
     const taskId = data.data?.task_id;
     if (!taskId) throw new Error(data.message || 'Error en Multi-Imagen');
@@ -317,6 +272,4 @@ async function handleMulti(req, res) {
 }
 
 // ─── Start ───────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-    console.log(`Kling Studio corriendo en http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`Kling Studio en http://localhost:${PORT}`));
