@@ -223,7 +223,8 @@ async function handleLipSync(req, res) {
         if (!req.body.audio_data) throw new Error('Audio no recibido');
         const raw = req.body.audio_data;
         const ext = getExt(raw, 'mp3');
-        input.audio_url = saveBase64(stripDataUrl(raw), ext, req);
+        input.audio_url  = saveBase64(stripDataUrl(raw), ext, req);
+        input.audio_type = ext === 'wav' ? 'wav' : 'mp3';
     } else {
         input.text     = req.body.tts_text || '';
         input.voice_id = req.body.voice_id || 'en_us_001';
