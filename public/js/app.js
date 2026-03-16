@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
-// KLING STUDIO — app.js v6
+// KLING STUDIO — app.js v7
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v6';
+window.APP_VERSION = 'v7';
 
 const state = {
     mode: 'text',
@@ -464,17 +464,27 @@ function buildBasePayload() {
 }
 
 async function submitTask(payload, action, statusId) {
+    const bodyStr = JSON.stringify(payload);
+    console.log('[Kling v7] POST /api/' + action + ' — payload: ' + (bodyStr.length / 1024).toFixed(1) + 'KB');
+
     const res  = await fetch('/api/' + action, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify(payload),
+        body:    bodyStr,
     });
+
     const text = await res.text();
+    console.log('[Kling v7] HTTP ' + res.status + ' — primeros 120 chars: ' + text.slice(0, 120));
+
     let data;
-    try { data = JSON.parse(text); }
-    catch(_) { throw new Error(`Servidor devolvió HTML (HTTP ${res.status}) — body demasiado grande`); }
+    try {
+        data = JSON.parse(text);
+    } catch(parseErr) {
+        console.error('[Kling v7] JSON.parse falló:', parseErr.message);
+        throw new Error('HTTP ' + res.status + ' — servidor devolvio HTML en vez de JSON (payload: ' + (bodyStr.length/1024).toFixed(1) + 'KB). Revisa la consola.');
+    }
     if (data.error) throw new Error(data.error);
-    if (!data.task_id) throw new Error('No se recibió task_id de la API');
+    if (!data.task_id) throw new Error('No se recibio task_id de la API');
     document.getElementById(statusId).textContent = 'Procesando en Kling (1-3 min)...';
     return { taskId: data.task_id, taskType: data.task_type || '' };
 }
