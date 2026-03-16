@@ -108,8 +108,9 @@ app.get('/api/status', route(async (req, res) => {
             const data   = await klingCall('GET', ep + task_id, token);
             const status = data.data?.task_status;
             if (!status) continue;
-            const url = data.data?.task_result?.videos?.[0]?.url ?? null;
-            return res.json({ status, video_url: url });
+            const url     = data.data?.task_result?.videos?.[0]?.url ?? null;
+            const failMsg = data.data?.task_status_msg || data.data?.failed_reason || null;
+            return res.json({ status, video_url: url, fail_reason: failMsg });
         } catch (_) { continue; }
     }
     res.json({ status: 'processing', video_url: null });
@@ -243,6 +244,7 @@ async function handleMotion(req, res) {
             image:                 stripDataUrl(req.body.image_data),
             prompt:                req.body.prompt || '',
             character_orientation: req.body.character_orientation || 'video',
+            duration:              req.body.duration || '5',
             mode:                  'pro',
             cfg_scale:             parseFloat(req.body.cfg_scale || '0.5'),
         };

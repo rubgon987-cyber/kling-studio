@@ -395,6 +395,15 @@
                     </div>
                     </div><!-- /cam-controls-section -->
 
+                    <div class="field-group">
+                        <label>Duracion del video</label>
+                        <div style="display:flex;gap:8px">
+                            <button id="mdur-5"  class="toggle-btn active" onclick="setMotionDuration(5)"  style="flex:1">5 seg</button>
+                            <button id="mdur-10" class="toggle-btn"        onclick="setMotionDuration(10)" style="flex:1">10 seg</button>
+                        </div>
+                        <div class="upload-hint" style="margin-top:5px">Para Motion Control v2.6/v3.0 selecciona la duracion mas cercana a la del video de referencia.</div>
+                    </div>
+
                     <div class="cost-box">
                         <div><div class="cost-label">Costo estimado</div><div class="cost-note" id="motion-cost-note">Kling 1.5 · Pro · 5 seg</div></div>
                         <div class="cost-value" id="motion-cost">$0.07</div>
@@ -618,6 +627,6 @@
 
     </main>
 </div>
-<script src="js/app.js?v=14"></script>
+<script src="js/app.js?v=15"></script>
 </body>
 </html>

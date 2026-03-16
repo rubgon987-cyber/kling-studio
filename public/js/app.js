@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // KLING STUDIO — app.js v7
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v14';
+window.APP_VERSION = 'v15';
 
 const state = {
     mode: 'text',
@@ -256,6 +256,9 @@ function setRefVideoMode(mode) {
 
 function setMotionDuration(d) {
     state.motionDuration = d;
+    document.getElementById('mdur-5').classList.toggle('active', d === 5);
+    document.getElementById('mdur-10').classList.toggle('active', d === 10);
+    updateMotionCost();
 }
 
 const PRESETS = {
@@ -329,6 +332,7 @@ async function generateMotion() {
             payload.character_orientation = document.getElementById('character-orientation').value;
             payload.keep_sound            = document.getElementById('keep-sound').checked;
             payload.cfg_scale             = document.getElementById('motion-cfg').value;
+            payload.duration              = String(state.motionDuration);
         }
 
         const { taskId, taskType } = await submitTask(payload, 'motion', 'motion-status');
@@ -562,7 +566,10 @@ async function pollStatus(taskId, taskType, statusId, progressId) {
 
         if (data.error) throw new Error(data.error);
         if (data.status === 'succeed' && data.video_url) return data.video_url;
-        if (data.status === 'failed') throw new Error('La generación falló en Kling');
+        if (data.status === 'failed') {
+            const reason = data.fail_reason ? (' — ' + data.fail_reason) : '';
+            throw new Error('La generacion fallo en Kling' + reason);
+        }
 
         const pct = Math.min(88, (i / MAX) * 100);
         if (statusId) document.getElementById(statusId).textContent = `Procesando... ${Math.round(pct)}%`;
