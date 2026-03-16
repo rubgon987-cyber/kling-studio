@@ -1,6 +1,7 @@
 // ══════════════════════════════════════════════
-// KLING STUDIO — app.js
+// KLING STUDIO — app.js v5
 // ══════════════════════════════════════════════
+window.APP_VERSION = 'v5';
 
 const state = {
     mode: 'text',
@@ -485,9 +486,13 @@ async function pollStatus(taskId, taskType, statusId, progressId) {
     for (let i = 0; i < 72; i++) {
         await sleep(5000);
         const url = `/api/status?task_id=${taskId}&task_type=${encodeURIComponent(taskType)}&api_key=${encodeURIComponent(apiKey)}&api_secret=${encodeURIComponent(apiSecret)}`;
-        const res = await fetch(url);
-        const data = await res.json();
+        const res  = await fetch(url);
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); }
+        catch(_) { continue; } // Si falla el parse, esperar siguiente intento
 
+        if (data.error) throw new Error(data.error);
         if (data.status === 'succeed' && data.video_url) return data.video_url;
         if (data.status === 'failed') throw new Error('La generación falló en Kling');
 
