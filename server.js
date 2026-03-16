@@ -297,6 +297,13 @@ async function handleMulti(req, res) {
         cfg_scale:       0.5,
     };
 
+    // Audio nativo — kling-v3 soporta enable_audio en multi-imagen
+    const multiModel = req.body.model || 'kling-v2-1';
+    if (multiModel === 'kling-v3') {
+        body.enable_audio = true;
+        body.mode = 'pro';
+    }
+
     const data   = await klingCall('POST', '/v1/videos/image2video', token, body);
     const taskId = data.data?.task_id;
     if (!taskId) throw new Error(data.message || 'Error en Multi-Imagen');

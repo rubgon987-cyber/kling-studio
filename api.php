@@ -109,6 +109,13 @@ function handleGenerate() {
         $taskType = 'text2video';
     }
 
+    // Audio nativo — kling-v2-6 y kling-v3 requieren enable_audio y mode pro
+    $audioModels = ['kling-v2-6', 'kling-v3'];
+    if (in_array($model, $audioModels)) {
+        $body['enable_audio'] = true;
+        $body['mode'] = 'pro';
+    }
+
     $res = apiCall('POST', $endpoint, $token, $body);
     if (!isset($res['data']['task_id'])) {
         throw new Exception($res['message'] ?? 'Error: no se recibio task_id');
@@ -234,6 +241,13 @@ function handleMulti() {
         'mode'            => 'std',
         'cfg_scale'       => 0.5,
     ];
+
+    // Audio nativo — kling-v3 soporta enable_audio en multi-imagen
+    $multiModel = post('model', 'kling-v2-1');
+    if ($multiModel === 'kling-v3') {
+        $body['enable_audio'] = true;
+        $body['mode'] = 'pro';
+    }
 
     $res = apiCall('POST', '/v1/videos/image2video', $token, $body);
     if (!isset($res['data']['task_id'])) {
