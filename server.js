@@ -11,7 +11,11 @@ const KLING_BASE = 'https://api-app-global.klingai.com';
 
 // ─── Uploads dir ────────────────────────────────────────────────────────────
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+try {
+    if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+} catch (e) {
+    console.warn('No se pudo crear uploads/, usando /tmp:', e.message);
+}
 
 // ─── Multer storage (v2 async API) ───────────────────────────────────────────
 const storage = multer.diskStorage({
@@ -104,6 +108,9 @@ function getCredentials(body) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════════════════
+app.get('/api/health', (req, res) => {
+    res.json({ ok: true, node: process.version, uptime: process.uptime() });
+});
 app.post('/api/:action', uploadFields, async (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     const { action } = req.params;
