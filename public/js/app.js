@@ -422,10 +422,9 @@ function checkApiKey() {
 // HELPERS COMPARTIDOS
 // ──────────────────────────────────────────────
 
-// Comprime imagen a máx 1280px y calidad JPEG 85% (~150-250KB)
+// Comprime imagen a máx 768px JPEG 75% (~30-80KB) para pasar límite del proxy
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
-        // Audio/video: enviar directo sin comprimir
         if (!file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload  = () => resolve(reader.result);
@@ -439,7 +438,7 @@ function fileToBase64(file) {
             const img = new Image();
             img.onerror = reject;
             img.onload = () => {
-                const MAX = 1280;
+                const MAX = 768;
                 let w = img.width, h = img.height;
                 if (w > MAX || h > MAX) {
                     if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -448,7 +447,7 @@ function fileToBase64(file) {
                 const canvas = document.createElement('canvas');
                 canvas.width = w; canvas.height = h;
                 canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL('image/jpeg', 0.85));
+                resolve(canvas.toDataURL('image/jpeg', 0.75));
             };
             img.src = e.target.result;
         };

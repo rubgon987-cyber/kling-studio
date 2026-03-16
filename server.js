@@ -10,8 +10,12 @@ const KLING_BASE = 'https://api-app-global.klingai.com';
 // ─── Body parser: JSON con límite de 50MB para base64 ───────────────────────
 app.use(express.json({ limit: '50mb' }));
 
-// ─── Static files ────────────────────────────────────────────────────────────
-app.use(express.static(path.join(__dirname, 'public')));
+// ─── Static files (sin caché para forzar actualizaciones) ────────────────────
+app.use(express.static(path.join(__dirname, 'public'), {
+    etag: false,
+    lastModified: false,
+    setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+}));
 
 // ─── JWT ─────────────────────────────────────────────────────────────────────
 function makeJWT(key, secret) {
