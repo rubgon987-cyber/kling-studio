@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // KLING STUDIO — app.js v7
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v11';
+window.APP_VERSION = 'v12';
 
 const state = {
     mode: 'text',
@@ -286,6 +286,19 @@ function showMotionVideoName(input) {
     }
 }
 
+function previewElem(input, idx) {
+    if (!input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img  = document.getElementById('elem-preview-' + idx);
+        const hint = document.getElementById('elem-hint-' + idx);
+        img.src = e.target.result;
+        img.classList.remove('hidden');
+        if (hint) hint.style.display = 'none';
+    };
+    reader.readAsDataURL(input.files[0]);
+}
+
 async function generateMotion() {
     if (!checkApiKey()) return;
 
@@ -327,8 +340,15 @@ async function generateMotion() {
         if (!CAMERA_CTRL_MODELS.has(model)) {
             payload.character_orientation = document.getElementById('character-orientation').value;
             payload.keep_sound            = document.getElementById('keep-sound').checked;
-            const elemId = document.getElementById('motion-element-id').value.trim();
-            if (elemId) payload.element_id = elemId;
+
+            // Fotos de elementos (referencia facial)
+            const elemFiles = [0,1,2,3]
+                .map(i => document.getElementById('elem-img-' + i)?.files[0])
+                .filter(Boolean);
+            if (elemFiles.length > 0) {
+                document.getElementById('motion-status').textContent = 'Creando elemento facial...';
+                payload.element_images = await Promise.all(elemFiles.map(fileToBase64));
+            }
         }
 
         const { taskId, taskType } = await submitTask(payload, 'motion', 'motion-status');

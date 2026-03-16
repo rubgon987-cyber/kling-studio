@@ -350,9 +350,30 @@
                             </div>
                         </div>
                         <div class="field-group">
-                            <label>Element ID <span class="hint">opcional — mejora consistencia facial en Kling 3.0</span></label>
-                            <input type="text" id="motion-element-id" placeholder="ID numerico (ej: 12345) — crear en app.klingai.com > Elements" style="width:100%;padding:10px;background:#1a1a2e;border:1px solid #333;color:#e0e0e0;border-radius:8px;box-sizing:border-box">
-                            <div class="upload-hint" style="margin-top:4px">Los elementos mejoran la fidelidad facial. Crealos en la plataforma web de Kling y pega el ID aqui.</div>
+                            <label>Elementos — referencia facial <span class="hint">opcional · Kling 3.0 · mejora consistencia</span></label>
+                            <div class="upload-hint" style="margin-bottom:10px">Sube 1-4 fotos del personaje desde distintos angulos (frontal, lateral, 3/4) para que la API aprenda su identidad facial. Solo se usa informacion del <b>rostro</b> — sin ropa ni accesorios.</div>
+                            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+                                <label class="upload-area" style="padding:12px;min-height:80px;cursor:pointer" title="Foto 1 - Frontal">
+                                    <img id="elem-preview-0" class="img-preview hidden" style="max-height:70px;object-fit:cover">
+                                    <span id="elem-hint-0" class="upload-hint" style="font-size:11px;text-align:center">Frontal</span>
+                                    <input type="file" id="elem-img-0" accept="image/*" class="file-hidden" onchange="previewElem(this,0)">
+                                </label>
+                                <label class="upload-area" style="padding:12px;min-height:80px;cursor:pointer" title="Foto 2 - Lateral">
+                                    <img id="elem-preview-1" class="img-preview hidden" style="max-height:70px;object-fit:cover">
+                                    <span id="elem-hint-1" class="upload-hint" style="font-size:11px;text-align:center">Lateral</span>
+                                    <input type="file" id="elem-img-1" accept="image/*" class="file-hidden" onchange="previewElem(this,1)">
+                                </label>
+                                <label class="upload-area" style="padding:12px;min-height:80px;cursor:pointer" title="Foto 3 - 3/4">
+                                    <img id="elem-preview-2" class="img-preview hidden" style="max-height:70px;object-fit:cover">
+                                    <span id="elem-hint-2" class="upload-hint" style="font-size:11px;text-align:center">3/4</span>
+                                    <input type="file" id="elem-img-2" accept="image/*" class="file-hidden" onchange="previewElem(this,2)">
+                                </label>
+                                <label class="upload-area" style="padding:12px;min-height:80px;cursor:pointer" title="Foto 4 - Otro angulo">
+                                    <img id="elem-preview-3" class="img-preview hidden" style="max-height:70px;object-fit:cover">
+                                    <span id="elem-hint-3" class="upload-hint" style="font-size:11px;text-align:center">Otro</span>
+                                    <input type="file" id="elem-img-3" accept="image/*" class="file-hidden" onchange="previewElem(this,3)">
+                                </label>
+                            </div>
                         </div>
                     </div>
 
@@ -617,6 +638,6 @@
 
     </main>
 </div>
-<script src="js/app.js?v=11"></script>
+<script src="js/app.js?v=12"></script>
 </body>
 </html>
