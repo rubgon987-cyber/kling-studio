@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // KLING STUDIO — app.js v7
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v16';
+window.APP_VERSION = 'v17';
 
 const state = {
     mode: 'text',
@@ -94,11 +94,6 @@ function updateCost() {
     if (audioSection) audioSection.classList.toggle('hidden', model !== 'kling-v3');
 }
 
-function toggleVoiceLang() {
-    const enabled = document.getElementById('gen-audio').checked;
-    const langField = document.getElementById('field-voice-lang');
-    if (langField) langField.classList.toggle('hidden', !enabled);
-}
 
 // ──────────────────────────────────────────────
 // GENERAR VIDEO (Texto/Imagen)
@@ -130,14 +125,10 @@ async function generateVideo() {
             payload.image_data = await fileToBase64(document.getElementById('image-input').files[0]);
         }
 
-        // Audio nativo (solo kling-v3)
+        // Audio nativo (solo kling-v3, campo correcto: enable_audio)
         if (payload.model === 'kling-v3') {
             const genAudio = document.getElementById('gen-audio');
-            payload.generate_audio = genAudio ? genAudio.checked : true;
-            if (payload.generate_audio) {
-                const voiceLang = document.getElementById('voice-language');
-                payload.voice_language = voiceLang ? voiceLang.value : 'en';
-            }
+            payload.enable_audio = genAudio ? genAudio.checked : true;
         }
 
         const { taskId, taskType } = await submitTask(payload, 'generate', 'gen-status');

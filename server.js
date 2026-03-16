@@ -161,10 +161,9 @@ async function handleGenerate(req, res) {
         taskType = 'text2video';
     }
 
-    // Audio nativo — solo kling-v3
-    if (model === 'kling-v3' && req.body.generate_audio !== false) {
-        body.generate_audio  = true;
-        body.voice_language  = req.body.voice_language || 'en';
+    // Audio nativo — kling-v3 (enable_audio es el campo correcto de la API)
+    if (model === 'kling-v3' && req.body.enable_audio !== false) {
+        body.enable_audio = true;
     }
 
     const data   = await klingCall('POST', endpoint, token, body);
@@ -262,11 +261,10 @@ async function handleMotion(req, res) {
             body.video_reference = stripDataUrl(req.body.ref_video_data);
         }
 
-        // Audio: preservar del video de referencia O generar nativo (kling-v3)
+        // Audio: preservar del video de referencia O generar nativo (v2.6 y v3.0)
         body.keep_original_sound = req.body.keep_sound !== 'false' && req.body.keep_sound !== false;
-        if (model === 'kling-v3') {
-            body.generate_audio = true;
-            body.voice_language = 'en';
+        if (model === 'kling-v2-6' || model === 'kling-v3') {
+            body.enable_audio = true;
         }
 
         data     = await klingCall('POST', '/v1/videos/image2video', token, body);
