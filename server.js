@@ -184,23 +184,27 @@ async function handleLipSync(req, res) {
     const token     = makeJWT(apiKey, apiSecret);
     const lipMode   = req.body.lip_mode   || 'image';
     const audioMode = req.body.audio_mode || 'audio2video';
-    const body      = { mode: audioMode };
+
+    // Kling lip-sync API requiere campos dentro de 'input'
+    const input = {};
 
     if (lipMode === 'image') {
         if (!req.body.image_data) throw new Error('Foto no recibida');
-        body.image = stripDataUrl(req.body.image_data);
+        input.image = stripDataUrl(req.body.image_data);
     } else {
         if (!req.body.video_data) throw new Error('Video no recibido');
-        body.video = stripDataUrl(req.body.video_data);
+        input.video = stripDataUrl(req.body.video_data);
     }
 
     if (audioMode === 'audio2video') {
         if (!req.body.audio_data) throw new Error('Audio no recibido');
-        body.audio = stripDataUrl(req.body.audio_data);
+        input.audio = stripDataUrl(req.body.audio_data);
     } else {
-        body.text     = req.body.tts_text || '';
-        body.voice_id = 'en_us_001';
+        input.text     = req.body.tts_text || '';
+        input.voice_id = req.body.voice_id || 'en_us_001';
     }
+
+    const body = { mode: audioMode, input };
 
     const data   = await klingCall('POST', '/v1/videos/lip-sync', token, body);
     const taskId = data.data?.task_id;
