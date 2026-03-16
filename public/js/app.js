@@ -106,21 +106,20 @@ async function generateVideo() {
     showGenerating('generating', 'gen-status', 'preview-placeholder', 'result-video', 'video-actions', 'btn-generate', 'btn-label');
 
     try {
-        const fd = buildBaseFormData();
-        fd.append('action', 'generate');
-        fd.append('prompt', prompt);
-        fd.append('negative_prompt', document.getElementById('negative-prompt').value);
-        fd.append('model', document.getElementById('model').value);
-        fd.append('duration', state.duration);
-        fd.append('aspect_ratio', state.aspect);
-        fd.append('mode', state.mode);
-        fd.append('quality', state.quality);
+        const payload = buildBasePayload();
+        payload.prompt          = prompt;
+        payload.negative_prompt = document.getElementById('negative-prompt').value;
+        payload.model           = document.getElementById('model').value;
+        payload.duration        = String(state.duration);
+        payload.aspect_ratio    = state.aspect;
+        payload.mode            = state.mode;
+        payload.quality         = state.quality;
 
         if (state.mode === 'image') {
-            fd.append('image', document.getElementById('image-input').files[0]);
+            payload.image_data = await fileToBase64(document.getElementById('image-input').files[0]);
         }
 
-        const { taskId, taskType } = await submitTask(fd, 'gen-status');
+        const { taskId, taskType } = await submitTask(payload, 'generate', 'gen-status');
         const url = await pollStatus(taskId, taskType, 'gen-status', 'progress-fill');
 
         showResult('result-video', url, 'generating', 'video-actions');
@@ -178,18 +177,17 @@ async function generateLipSync() {
     showGenerating('lip-generating', 'lip-status', 'lip-placeholder', 'lip-result-video', 'lip-video-actions');
 
     try {
-        const fd = buildBaseFormData();
-        fd.append('action', 'lipsync');
-        fd.append('lip_mode', state.lipMode);
-        fd.append('audio_mode', audioMode);
+        const payload = buildBasePayload();
+        payload.lip_mode   = state.lipMode;
+        payload.audio_mode = audioMode;
 
-        if (state.lipMode === 'image') fd.append('image', document.getElementById('lip-image-input').files[0]);
-        else fd.append('video', document.getElementById('lip-video-input').files[0]);
+        if (state.lipMode === 'image') payload.image_data = await fileToBase64(document.getElementById('lip-image-input').files[0]);
+        else payload.video_data = await fileToBase64(document.getElementById('lip-video-input').files[0]);
 
-        if (audioMode === 'audio2video') fd.append('audio', document.getElementById('lip-audio-input').files[0]);
-        else fd.append('tts_text', ttsText);
+        if (audioMode === 'audio2video') payload.audio_data = await fileToBase64(document.getElementById('lip-audio-input').files[0]);
+        else payload.tts_text = ttsText;
 
-        const { taskId, taskType } = await submitTask(fd, 'lip-status');
+        const { taskId, taskType } = await submitTask(payload, 'lipsync', 'lip-status');
         const url = await pollStatus(taskId, taskType, 'lip-status');
 
         showResult('lip-result-video', url, 'lip-generating', 'lip-video-actions');
@@ -262,21 +260,18 @@ async function generateMotion() {
     showGenerating('motion-generating', 'motion-status', 'motion-placeholder', 'motion-result-video', 'motion-video-actions');
 
     try {
-        const fd = buildBaseFormData();
-        fd.append('action', 'motion');
-        fd.append('image', imgInput.files[0]);
-        fd.append('prompt', document.getElementById('motion-prompt').value);
-        fd.append('model', 'kling-v1-5');
-        fd.append('duration', state.motionDuration);
-        fd.append('cam_horizontal', document.getElementById('cam-horizontal').value);
-        fd.append('cam_vertical', document.getElementById('cam-vertical').value);
-        fd.append('cam_zoom', document.getElementById('cam-zoom').value);
-        fd.append('cam_roll', document.getElementById('cam-roll').value);
+        const payload = buildBasePayload();
+        payload.image_data     = await fileToBase64(imgInput.files[0]);
+        payload.prompt         = document.getElementById('motion-prompt').value;
+        payload.cam_horizontal = document.getElementById('cam-horizontal').value;
+        payload.cam_vertical   = document.getElementById('cam-vertical').value;
+        payload.cam_zoom       = document.getElementById('cam-zoom').value;
+        payload.cam_roll       = document.getElementById('cam-roll').value;
 
         const refVideo = document.getElementById('motion-video-input').files[0];
-        if (refVideo) fd.append('ref_video', refVideo);
+        if (refVideo) payload.ref_video_data = await fileToBase64(refVideo);
 
-        const { taskId, taskType } = await submitTask(fd, 'motion-status');
+        const { taskId, taskType } = await submitTask(payload, 'motion', 'motion-status');
         const url = await pollStatus(taskId, taskType, 'motion-status');
 
         showResult('motion-result-video', url, 'motion-generating', 'motion-video-actions');
@@ -339,16 +334,15 @@ async function generateMulti() {
     showGenerating('multi-generating', 'multi-status', 'multi-placeholder', 'multi-result-video', 'multi-video-actions');
 
     try {
-        const fd = buildBaseFormData();
-        fd.append('action', 'multi');
-        fd.append('prompt', prompt);
-        fd.append('negative_prompt', document.getElementById('multi-neg-prompt').value);
-        fd.append('model', document.getElementById('multi-model').value);
-        fd.append('duration', state.multiDuration);
-        fd.append('aspect_ratio', state.multiAspect);
-        files.forEach((f, i) => fd.append('images[]', f));
+        const payload = buildBasePayload();
+        payload.prompt          = prompt;
+        payload.negative_prompt = document.getElementById('multi-neg-prompt').value;
+        payload.model           = document.getElementById('multi-model').value;
+        payload.duration        = String(state.multiDuration);
+        payload.aspect_ratio    = state.multiAspect;
+        payload.images_data     = await Promise.all(files.map(fileToBase64));
 
-        const { taskId, taskType } = await submitTask(fd, 'multi-status');
+        const { taskId, taskType } = await submitTask(payload, 'multi', 'multi-status');
         const url = await pollStatus(taskId, taskType, 'multi-status');
 
         showResult('multi-result-video', url, 'multi-generating', 'multi-video-actions');
@@ -420,17 +414,31 @@ function checkApiKey() {
 // ──────────────────────────────────────────────
 // HELPERS COMPARTIDOS
 // ──────────────────────────────────────────────
-function buildBaseFormData() {
-    const fd = new FormData();
-    fd.append('api_key', localStorage.getItem('kling_api_key'));
-    fd.append('api_secret', localStorage.getItem('kling_api_secret'));
-    return fd;
+
+// Convierte un File a base64 data URL
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 }
 
-async function submitTask(fd, statusId) {
-    const action = fd.get('action');
-    const res    = await fetch('/api/' + action, { method: 'POST', body: fd });
-    const data   = await res.json();
+function buildBasePayload() {
+    return {
+        api_key:    localStorage.getItem('kling_api_key'),
+        api_secret: localStorage.getItem('kling_api_secret'),
+    };
+}
+
+async function submitTask(payload, action, statusId) {
+    const res  = await fetch('/api/' + action, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(payload),
+    });
+    const data = await res.json();
     if (data.error) throw new Error(data.error);
     if (!data.task_id) throw new Error('No se recibió task_id de la API');
     document.getElementById(statusId).textContent = 'Procesando en Kling (1-3 min)...';

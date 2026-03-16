@@ -1,5 +1,4 @@
 const express = require('express');
-const multer  = require('multer');
 const path    = require('path');
 const crypto  = require('crypto');
 
@@ -8,19 +7,8 @@ const PORT = process.env.PORT || 3000;
 
 const KLING_BASE = 'https://api-app-global.klingai.com';
 
-// ─── Multer: memoria, sin disco, sin permisos ────────────────────────────────
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits:  { fileSize: 50 * 1024 * 1024 }
-});
-
-const uploadFields = upload.fields([
-    { name: 'image',     maxCount: 1 },
-    { name: 'video',     maxCount: 1 },
-    { name: 'audio',     maxCount: 1 },
-    { name: 'ref_video', maxCount: 1 },
-    { name: 'images',    maxCount: 4 },
-]);
+// ─── Body parser: JSON con límite de 50MB para base64 ───────────────────────
+app.use(express.json({ limit: '50mb' }));
 
 // ─── Static files ────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
@@ -38,11 +26,6 @@ function makeJWT(key, secret) {
 function b64u(data) {
     const buf = Buffer.isBuffer(data) ? data : Buffer.from(data, 'utf8');
     return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-// ─── Archivo a base64 para la API de Kling ───────────────────────────────────
-function fileToBase64(file) {
-    return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
 }
 
 // ─── Kling API call ──────────────────────────────────────────────────────────
@@ -63,101 +46,79 @@ async function klingCall(method, endpoint, token, body = null) {
 }
 
 // ─── Credentials ─────────────────────────────────────────────────────────────
-function getCredentials(body) {
-    const k = body.api_key, s = body.api_secret;
-    if (!k || !s) throw new Error('API Key y Secret son requeridos');
-    return [k, s];
+function creds(body) {
+    if (!body.api_key || !body.api_secret) throw new Error('API Key y Secret son requeridos');
+    return [body.api_key, body.api_secret];
+}
+
+// ─── Route wrapper ────────────────────────────────────────────────────────────
+function route(handler) {
+    return async (req, res) => {
+        res.setHeader('Content-Type', 'application/json');
+        try { await handler(req, res); }
+        catch (e) { res.status(500).json({ error: e.message }); }
+    };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════════════════
-app.use(express.json());
-
 app.get('/api/health', (req, res) => {
-    res.json({ ok: true, node: process.version, uptime: Math.round(process.uptime()), multer: require('multer/package.json').version });
+    res.json({ ok: true, node: process.version, uptime: Math.round(process.uptime()) });
 });
 
-// Endpoint de diagnóstico POST sin archivos
-app.post('/api/ping', (req, res) => {
-    res.json({ ok: true, body: req.body });
-});
+app.post('/api/generate', route(handleGenerate));
+app.post('/api/lipsync',  route(handleLipSync));
+app.post('/api/motion',   route(handleMotion));
+app.post('/api/multi',    route(handleMulti));
 
-// Multer error handler wrapper
-function withUpload(handler) {
-    return (req, res) => {
-        uploadFields(req, res, async (err) => {
-            res.setHeader('Content-Type', 'application/json');
-            if (err) return res.status(400).json({ error: 'Upload error: ' + err.message });
-            try {
-                await handler(req, res);
-            } catch (e) {
-                res.status(500).json({ error: e.message });
-            }
-        });
+app.get('/api/status', route(async (req, res) => {
+    const { task_id, task_type, api_key, api_secret } = req.query;
+    if (!task_id || !api_key || !api_secret) throw new Error('Parametros incompletos');
+    const token = makeJWT(api_key, api_secret);
+    const endpointMap = {
+        'text2video':  '/v1/videos/text2video/',
+        'image2video': '/v1/videos/image2video/',
+        'lip-sync':    '/v1/videos/lip-sync/',
     };
-}
-
-app.post('/api/generate', withUpload(handleGenerate));
-app.post('/api/lipsync',  withUpload(handleLipSync));
-app.post('/api/motion',   withUpload(handleMotion));
-app.post('/api/multi',    withUpload(handleMulti));
-
-app.get('/api/status', async (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    try {
-        const { task_id, task_type, api_key, api_secret } = req.query;
-        if (!task_id || !api_key || !api_secret) throw new Error('Parametros incompletos');
-
-        const token = makeJWT(api_key, api_secret);
-        const endpointMap = {
-            'text2video':  '/v1/videos/text2video/',
-            'image2video': '/v1/videos/image2video/',
-            'lip-sync':    '/v1/videos/lip-sync/',
-        };
-        const endpoints = (task_type && endpointMap[task_type])
-            ? [endpointMap[task_type]]
-            : Object.values(endpointMap);
-
-        for (const ep of endpoints) {
-            try {
-                const data   = await klingCall('GET', ep + task_id, token);
-                const status = data.data?.task_status;
-                if (!status) continue;
-                const url = data.data?.task_result?.videos?.[0]?.url ?? null;
-                return res.json({ status, video_url: url });
-            } catch (_) { continue; }
-        }
-        res.json({ status: 'processing', video_url: null });
-    } catch (e) {
-        res.json({ error: e.message });
+    const endpoints = (task_type && endpointMap[task_type])
+        ? [endpointMap[task_type]]
+        : Object.values(endpointMap);
+    for (const ep of endpoints) {
+        try {
+            const data   = await klingCall('GET', ep + task_id, token);
+            const status = data.data?.task_status;
+            if (!status) continue;
+            const url = data.data?.task_result?.videos?.[0]?.url ?? null;
+            return res.json({ status, video_url: url });
+        } catch (_) { continue; }
     }
-});
+    res.json({ status: 'processing', video_url: null });
+}));
 
-// Global error handler — siempre devuelve JSON, nunca HTML
+// Global JSON error handler
 app.use((err, req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
-    res.status(500).json({ error: err.message || 'Error interno del servidor' });
+    res.status(500).json({ error: err.message || 'Error interno' });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// HANDLERS
+// HANDLERS — reciben archivos como base64 en el body JSON
 // ═══════════════════════════════════════════════════════════════════════════════
 async function handleGenerate(req, res) {
-    const [apiKey, apiSecret] = getCredentials(req.body);
-    const token    = makeJWT(apiKey, apiSecret);
-    const mode     = req.body.mode    || 'text';
-    const model    = req.body.model   || 'kling-v1-6';
-    const quality  = req.body.quality || 'std';
+    const [apiKey, apiSecret] = creds(req.body);
+    const token   = makeJWT(apiKey, apiSecret);
+    const mode    = req.body.mode    || 'text';
+    const model   = req.body.model   || 'kling-v1-6';
+    const quality = req.body.quality || 'std';
 
     let endpoint, taskType, body;
 
     if (mode === 'image') {
-        const imgFile = req.files?.image?.[0];
-        if (!imgFile) throw new Error('Imagen no recibida');
+        if (!req.body.image_data) throw new Error('Imagen no recibida');
         body = {
             model_name:      model,
-            image:           fileToBase64(imgFile),
+            image:           req.body.image_data,
             prompt:          req.body.prompt          || '',
             negative_prompt: req.body.negative_prompt || '',
             duration:        req.body.duration        || '5',
@@ -187,27 +148,23 @@ async function handleGenerate(req, res) {
 }
 
 async function handleLipSync(req, res) {
-    const [apiKey, apiSecret] = getCredentials(req.body);
+    const [apiKey, apiSecret] = creds(req.body);
     const token     = makeJWT(apiKey, apiSecret);
     const lipMode   = req.body.lip_mode   || 'image';
     const audioMode = req.body.audio_mode || 'audio2video';
-
-    const body = { mode: audioMode };
+    const body      = { mode: audioMode };
 
     if (lipMode === 'image') {
-        const imgFile = req.files?.image?.[0];
-        if (!imgFile) throw new Error('Foto no recibida');
-        body.image = fileToBase64(imgFile);
+        if (!req.body.image_data) throw new Error('Foto no recibida');
+        body.image = req.body.image_data;
     } else {
-        const vidFile = req.files?.video?.[0];
-        if (!vidFile) throw new Error('Video no recibido');
-        body.video = fileToBase64(vidFile);
+        if (!req.body.video_data) throw new Error('Video no recibido');
+        body.video = req.body.video_data;
     }
 
     if (audioMode === 'audio2video') {
-        const audFile = req.files?.audio?.[0];
-        if (!audFile) throw new Error('Audio no recibido');
-        body.audio = fileToBase64(audFile);
+        if (!req.body.audio_data) throw new Error('Audio no recibido');
+        body.audio = req.body.audio_data;
     } else {
         body.text     = req.body.tts_text || '';
         body.voice_id = 'en_us_001';
@@ -220,14 +177,13 @@ async function handleLipSync(req, res) {
 }
 
 async function handleMotion(req, res) {
-    const [apiKey, apiSecret] = getCredentials(req.body);
-    const token   = makeJWT(apiKey, apiSecret);
-    const imgFile = req.files?.image?.[0];
-    if (!imgFile) throw new Error('Imagen no recibida');
+    const [apiKey, apiSecret] = creds(req.body);
+    const token = makeJWT(apiKey, apiSecret);
+    if (!req.body.image_data) throw new Error('Imagen no recibida');
 
     const body = {
         model_name: 'kling-v1-5',
-        image:      fileToBase64(imgFile),
+        image:      req.body.image_data,
         prompt:     req.body.prompt || '',
         duration:   '5',
         mode:       'pro',
@@ -245,8 +201,7 @@ async function handleMotion(req, res) {
         }
     };
 
-    const refFile = req.files?.ref_video?.[0];
-    if (refFile) body.video_reference = fileToBase64(refFile);
+    if (req.body.ref_video_data) body.video_reference = req.body.ref_video_data;
 
     const data   = await klingCall('POST', '/v1/videos/image2video', token, body);
     const taskId = data.data?.task_id;
@@ -255,16 +210,15 @@ async function handleMotion(req, res) {
 }
 
 async function handleMulti(req, res) {
-    const [apiKey, apiSecret] = getCredentials(req.body);
+    const [apiKey, apiSecret] = creds(req.body);
     const token  = makeJWT(apiKey, apiSecret);
-    const images = req.files?.images || [];
-
+    const images = req.body.images_data || [];
     if (images.length < 2) throw new Error('Se necesitan al menos 2 imagenes');
 
     const body = {
         model_name:      req.body.model    || 'kling-v2-1',
-        image:           fileToBase64(images[0]),
-        image_tail:      fileToBase64(images[images.length - 1]),
+        image:           images[0],
+        image_tail:      images[images.length - 1],
         prompt:          req.body.prompt   || '',
         negative_prompt: req.body.negative_prompt || '',
         duration:        req.body.duration || '5',
