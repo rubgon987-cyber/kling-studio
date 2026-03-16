@@ -464,18 +464,15 @@ function buildBasePayload() {
 }
 
 async function submitTask(payload, action, statusId) {
-    const res = await fetch('/api/' + action, {
+    const res  = await fetch('/api/' + action, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
     });
-    if (!res.ok && res.status !== 200) {
-        throw new Error(`HTTP ${res.status} — el servidor rechazó la solicitud`);
-    }
     const text = await res.text();
     let data;
     try { data = JSON.parse(text); }
-    catch(_) { throw new Error(`Servidor devolvió HTML (HTTP ${res.status}) — body size limit?`); }
+    catch(_) { throw new Error(`Servidor devolvió HTML (HTTP ${res.status}) — body demasiado grande`); }
     if (data.error) throw new Error(data.error);
     if (!data.task_id) throw new Error('No se recibió task_id de la API');
     document.getElementById(statusId).textContent = 'Procesando en Kling (1-3 min)...';
