@@ -415,12 +415,36 @@ function checkApiKey() {
 // HELPERS COMPARTIDOS
 // ──────────────────────────────────────────────
 
-// Convierte un File a base64 data URL
+// Comprime imagen a máx 1280px y calidad JPEG 85% (~150-250KB)
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
+        // Audio/video: enviar directo sin comprimir
+        if (!file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload  = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+            return;
+        }
         const reader = new FileReader();
-        reader.onload  = () => resolve(reader.result);
         reader.onerror = reject;
+        reader.onload = e => {
+            const img = new Image();
+            img.onerror = reject;
+            img.onload = () => {
+                const MAX = 1280;
+                let w = img.width, h = img.height;
+                if (w > MAX || h > MAX) {
+                    if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+                    else       { w = Math.round(w * MAX / h); h = MAX; }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', 0.85));
+            };
+            img.src = e.target.result;
+        };
         reader.readAsDataURL(file);
     });
 }
@@ -433,12 +457,18 @@ function buildBasePayload() {
 }
 
 async function submitTask(payload, action, statusId) {
-    const res  = await fetch('/api/' + action, {
+    const res = await fetch('/api/' + action, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify(payload),
     });
-    const data = await res.json();
+    if (!res.ok && res.status !== 200) {
+        throw new Error(`HTTP ${res.status} — el servidor rechazó la solicitud`);
+    }
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch(_) { throw new Error(`Servidor devolvió HTML (HTTP ${res.status}) — body size limit?`); }
     if (data.error) throw new Error(data.error);
     if (!data.task_id) throw new Error('No se recibió task_id de la API');
     document.getElementById(statusId).textContent = 'Procesando en Kling (1-3 min)...';
