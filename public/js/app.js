@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // KLING STUDIO — app.js v7
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v15';
+window.APP_VERSION = 'v16';
 
 const state = {
     mode: 'text',
@@ -88,6 +88,16 @@ function updateCost() {
     document.getElementById('cost-display').textContent = '$' + price.toFixed(2);
     document.getElementById('cost-note').textContent =
         MODEL_NAMES[model] + ' · ' + state.duration + ' seg · ' + (state.quality === 'std' ? 'Standard' : 'Pro');
+
+    // Audio nativo solo disponible en kling-v3
+    const audioSection = document.getElementById('field-audio-native');
+    if (audioSection) audioSection.classList.toggle('hidden', model !== 'kling-v3');
+}
+
+function toggleVoiceLang() {
+    const enabled = document.getElementById('gen-audio').checked;
+    const langField = document.getElementById('field-voice-lang');
+    if (langField) langField.classList.toggle('hidden', !enabled);
 }
 
 // ──────────────────────────────────────────────
@@ -118,6 +128,16 @@ async function generateVideo() {
 
         if (state.mode === 'image') {
             payload.image_data = await fileToBase64(document.getElementById('image-input').files[0]);
+        }
+
+        // Audio nativo (solo kling-v3)
+        if (payload.model === 'kling-v3') {
+            const genAudio = document.getElementById('gen-audio');
+            payload.generate_audio = genAudio ? genAudio.checked : true;
+            if (payload.generate_audio) {
+                const voiceLang = document.getElementById('voice-language');
+                payload.voice_language = voiceLang ? voiceLang.value : 'en';
+            }
         }
 
         const { taskId, taskType } = await submitTask(payload, 'generate', 'gen-status');

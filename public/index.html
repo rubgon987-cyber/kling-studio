@@ -86,6 +86,22 @@
                         </select>
                     </div>
 
+                    <!-- Audio nativo — exclusivo Kling 3.0 -->
+                    <div class="field-group" id="field-audio-native">
+                        <label>Audio nativo <span class="hint">Kling 3.0 genera voz automaticamente</span></label>
+                        <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                            <input type="checkbox" id="gen-audio" checked style="width:18px;height:18px;accent-color:#7c3aed" onchange="toggleVoiceLang()">
+                            <label for="gen-audio" style="cursor:pointer;color:#ccc">Generar audio en el video</label>
+                        </div>
+                        <div id="field-voice-lang" style="margin-top:10px">
+                            <label style="font-size:12px;color:#999;margin-bottom:6px;display:block">Idioma de la voz</label>
+                            <select id="voice-language">
+                                <option value="en">Ingles</option>
+                                <option value="zh">Chino</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="field-row">
                         <div class="field-group">
                             <label>Duracion</label>
@@ -627,6 +643,6 @@
 
     </main>
 </div>
-<script src="js/app.js?v=15"></script>
+<script src="js/app.js?v=16"></script>
 </body>
 </html>
