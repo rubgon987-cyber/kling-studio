@@ -176,8 +176,10 @@ document.addEventListener('DOMContentLoaded', () => {
 async function generateLipSync() {
     if (!checkApiKey()) return;
 
-    const videoFile = document.getElementById('lip-video-input').files[0];
-    const hasAudio = document.getElementById('lip-audio-input').files[0];
+    const videoEl = document.getElementById('lip-video-input');
+    const videoFile = videoEl && videoEl.files[0];
+    const audioEl = document.getElementById('lip-audio-input');
+    const hasAudio = audioEl && audioEl.files[0];
     const audioMode = document.getElementById('lip-audio-mode').value;
     const ttsText = document.getElementById('lip-tts-text').value.trim();
 
@@ -194,7 +196,7 @@ async function generateLipSync() {
 
         payload.video_data = await fileToBase64(videoFile);
 
-        if (audioMode === 'audio2video') payload.audio_data = await fileToBase64(document.getElementById('lip-audio-input').files[0]);
+        if (audioMode === 'audio2video') payload.audio_data = await fileToBase64(audioEl.files[0]);
         else payload.tts_text = ttsText;
 
         const { taskId, taskType } = await submitTask(payload, 'lipsync', 'lip-status');
