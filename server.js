@@ -13,12 +13,12 @@ const KLING_BASE = 'https://api-app-global.klingai.com';
 const UPLOAD_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-// ─── Multer storage ──────────────────────────────────────────────────────────
+// ─── Multer storage (v2 async API) ───────────────────────────────────────────
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => cb(null, UPLOAD_DIR),
-    filename:    (req, file, cb) => {
-        const ext  = path.extname(file.originalname);
-        cb(null, 'kling_' + Date.now() + '_' + Math.random().toString(36).slice(2) + ext);
+    destination: async (req, file) => UPLOAD_DIR,
+    filename:    async (req, file) => {
+        const ext = path.extname(file.originalname);
+        return 'kling_' + Date.now() + '_' + Math.random().toString(36).slice(2) + ext;
     }
 });
 const upload = multer({ storage, limits: { fileSize: 50 * 1024 * 1024 } });
