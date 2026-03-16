@@ -215,7 +215,7 @@ async function handleLipSync(req, res) {
         if (!req.body.image_data) throw new Error('Foto no recibida');
         const raw = req.body.image_data;
         const ext = getExt(raw, 'jpg');
-        input.image_url = saveBase64(stripDataUrl(raw), ext, req);
+        input.video_url = saveBase64(stripDataUrl(raw), ext, req); // Kling solo acepta video_url
     } else {
         if (!req.body.video_data) throw new Error('Video no recibido');
         const raw = req.body.video_data;
