@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
-// KLING STUDIO — app.js v5
+// KLING STUDIO — app.js v6
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v5';
+window.APP_VERSION = 'v6';
 
 const state = {
     mode: 'text',
@@ -423,7 +423,7 @@ function checkApiKey() {
 // HELPERS COMPARTIDOS
 // ──────────────────────────────────────────────
 
-// Comprime imagen a máx 768px JPEG 75% (~30-80KB) para pasar límite del proxy
+// Comprime imagen a máx 480px JPEG 65% (~15-35KB) para pasar límite del proxy nginx
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         if (!file.type.startsWith('image/')) {
@@ -439,7 +439,7 @@ function fileToBase64(file) {
             const img = new Image();
             img.onerror = reject;
             img.onload = () => {
-                const MAX = 768;
+                const MAX = 480;
                 let w = img.width, h = img.height;
                 if (w > MAX || h > MAX) {
                     if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -448,7 +448,7 @@ function fileToBase64(file) {
                 const canvas = document.createElement('canvas');
                 canvas.width = w; canvas.height = h;
                 canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL('image/jpeg', 0.75));
+                resolve(canvas.toDataURL('image/jpeg', 0.65));
             };
             img.src = e.target.result;
         };
