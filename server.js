@@ -32,6 +32,15 @@ function b64u(data) {
     return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+// ─── Strip data-URL prefix (Kling espera base64 puro, sin "data:...;base64,") ─
+function stripDataUrl(str) {
+    if (typeof str === 'string' && str.startsWith('data:')) {
+        const idx = str.indexOf(',');
+        if (idx !== -1) return str.slice(idx + 1);
+    }
+    return str;
+}
+
 // ─── Kling API call ──────────────────────────────────────────────────────────
 async function klingCall(method, endpoint, token, body = null) {
     const res  = await fetch(KLING_BASE + endpoint, {
@@ -42,7 +51,10 @@ async function klingCall(method, endpoint, token, body = null) {
         },
         body: body ? JSON.stringify(body) : undefined,
     });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); }
+    catch(_) { throw new Error('Kling devolvio respuesta no-JSON (HTTP ' + res.status + '): ' + text.slice(0, 300)); }
     if (!res.ok) throw new Error((data.message || '') + ' (HTTP ' + res.status + ')');
     if (data.code !== undefined && data.code !== 0)
         throw new Error('[' + data.code + '] ' + (data.message || 'Error de API Kling'));
@@ -125,7 +137,7 @@ async function handleGenerate(req, res) {
         if (!req.body.image_data) throw new Error('Imagen no recibida');
         body = {
             model_name:      model,
-            image:           req.body.image_data,
+            image:           stripDataUrl(req.body.image_data),
             prompt:          req.body.prompt          || '',
             negative_prompt: req.body.negative_prompt || '',
             duration:        req.body.duration        || '5',
@@ -163,15 +175,15 @@ async function handleLipSync(req, res) {
 
     if (lipMode === 'image') {
         if (!req.body.image_data) throw new Error('Foto no recibida');
-        body.image = req.body.image_data;
+        body.image = stripDataUrl(req.body.image_data);
     } else {
         if (!req.body.video_data) throw new Error('Video no recibido');
-        body.video = req.body.video_data;
+        body.video = stripDataUrl(req.body.video_data);
     }
 
     if (audioMode === 'audio2video') {
         if (!req.body.audio_data) throw new Error('Audio no recibido');
-        body.audio = req.body.audio_data;
+        body.audio = stripDataUrl(req.body.audio_data);
     } else {
         body.text     = req.body.tts_text || '';
         body.voice_id = 'en_us_001';
@@ -190,7 +202,7 @@ async function handleMotion(req, res) {
 
     const body = {
         model_name: 'kling-v1-5',
-        image:      req.body.image_data,
+        image:      stripDataUrl(req.body.image_data),
         prompt:     req.body.prompt || '',
         duration:   '5',
         mode:       'pro',
@@ -208,7 +220,7 @@ async function handleMotion(req, res) {
         }
     };
 
-    if (req.body.ref_video_data) body.video_reference = req.body.ref_video_data;
+    if (req.body.ref_video_data) body.video_reference = stripDataUrl(req.body.ref_video_data);
 
     const data   = await klingCall('POST', '/v1/videos/image2video', token, body);
     const taskId = data.data?.task_id;
@@ -224,8 +236,8 @@ async function handleMulti(req, res) {
 
     const body = {
         model_name:      req.body.model    || 'kling-v2-1',
-        image:           images[0],
-        image_tail:      images[images.length - 1],
+        image:           stripDataUrl(images[0]),
+        image_tail:      stripDataUrl(images[images.length - 1]),
         prompt:          req.body.prompt   || '',
         negative_prompt: req.body.negative_prompt || '',
         duration:        req.body.duration || '5',
