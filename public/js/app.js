@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // KLING STUDIO — app.js v7
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v7';
+window.APP_VERSION = 'v8';
 
 const state = {
     mode: 'text',
@@ -493,24 +493,30 @@ async function pollStatus(taskId, taskType, statusId, progressId) {
     const apiKey    = localStorage.getItem('kling_api_key');
     const apiSecret = localStorage.getItem('kling_api_secret');
 
-    for (let i = 0; i < 72; i++) {
+    const MAX = 120; // 10 minutos
+    for (let i = 0; i < MAX; i++) {
         await sleep(5000);
         const url = `/api/status?task_id=${taskId}&task_type=${encodeURIComponent(taskType)}&api_key=${encodeURIComponent(apiKey)}&api_secret=${encodeURIComponent(apiSecret)}`;
         const res  = await fetch(url);
         const text = await res.text();
         let data;
         try { data = JSON.parse(text); }
-        catch(_) { continue; } // Si falla el parse, esperar siguiente intento
+        catch(_) {
+            console.warn('[Poll] parse error en intento', i, text.slice(0, 80));
+            continue;
+        }
+
+        console.log('[Poll] intento', i, '→ status:', data.status, '| error:', data.error || '-');
 
         if (data.error) throw new Error(data.error);
         if (data.status === 'succeed' && data.video_url) return data.video_url;
         if (data.status === 'failed') throw new Error('La generación falló en Kling');
 
-        const pct = Math.min(88, (i / 72) * 100);
+        const pct = Math.min(88, (i / MAX) * 100);
         if (statusId) document.getElementById(statusId).textContent = `Procesando... ${Math.round(pct)}%`;
         if (progressId) document.getElementById(progressId).style.width = pct + '%';
     }
-    throw new Error('Tiempo de espera agotado (6 min). Intenta de nuevo.');
+    throw new Error('Tiempo de espera agotado (10 min). Intenta de nuevo.');
 }
 
 function showGenerating(genId, statusId, placeholderId, videoId, actionsId, btnId, btnLabelId) {
