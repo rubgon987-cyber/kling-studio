@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // KLING STUDIO — app.js v7
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v17';
+window.APP_VERSION = 'v18';
 
 const state = {
     mode: 'text',

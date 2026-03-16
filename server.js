@@ -161,12 +161,16 @@ async function handleGenerate(req, res) {
         taskType = 'text2video';
     }
 
-    // Audio nativo — kling-v3 (enable_audio es el campo correcto de la API)
-    if (model === 'kling-v3' && req.body.enable_audio !== false) {
+    // Audio nativo — kling-v2-6 y kling-v3 (requiere mode: pro)
+    const audioModels = new Set(['kling-v2-6', 'kling-v3']);
+    if (audioModels.has(model) && req.body.enable_audio !== false) {
         body.enable_audio = true;
+        body.mode = 'pro'; // audio solo funciona en modo pro
     }
 
+    console.log('[handleGenerate] body enviado a Kling:', JSON.stringify({ ...body, image: body.image ? '[base64]' : undefined }));
     const data   = await klingCall('POST', endpoint, token, body);
+    console.log('[handleGenerate] respuesta Kling:', JSON.stringify(data).slice(0, 300));
     const taskId = data.data?.task_id;
     if (!taskId) throw new Error(data.message || 'No se recibio task_id');
     res.json({ task_id: taskId, task_type: taskType });
