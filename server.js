@@ -96,10 +96,9 @@ app.get('/api/status', route(async (req, res) => {
     if (!task_id || !api_key || !api_secret) throw new Error('Parametros incompletos');
     const token = makeJWT(api_key, api_secret);
     const endpointMap = {
-        'text2video':     '/v1/videos/text2video/',
-        'image2video':    '/v1/videos/image2video/',
-        'lip-sync':       '/v1/videos/lip-sync/',
-        'motion-control': '/v1/videos/motion-control/',
+        'text2video':  '/v1/videos/text2video/',
+        'image2video': '/v1/videos/image2video/',
+        'lip-sync':    '/v1/videos/lip-sync/',
     };
     const endpoints = (task_type && endpointMap[task_type])
         ? [endpointMap[task_type]]
@@ -260,25 +259,28 @@ async function handleMotion(req, res) {
             body.keep_original_sound = req.body.keep_sound === true || req.body.keep_sound === 'true';
         }
 
-        // Elementos de referencia facial: subir fotos → crear elemento → obtener element_id
+        // Elementos de referencia facial (opcional — no-blocking si el endpoint falla)
         if (req.body.element_images && req.body.element_images.length > 0) {
-            const imgs = req.body.element_images;
-            const elemBody = { image: stripDataUrl(imgs[0]) };
-            if (imgs[1]) elemBody.extra_image_1 = stripDataUrl(imgs[1]);
-            if (imgs[2]) elemBody.extra_image_2 = stripDataUrl(imgs[2]);
-            if (imgs[3]) elemBody.extra_image_3 = stripDataUrl(imgs[3]);
-            console.log('[Element] Creando elemento con', imgs.length, 'imagen(es)...');
-            const elemData = await klingCall('POST', '/v1/elements', token, elemBody);
-            const elementId = elemData.data?.element_id ?? elemData.data?.id;
-            console.log('[Element] element_id:', elementId);
-            if (elementId) {
-                body.element_list = [{ element_id: elementId }];
-                body.character_orientation = 'video'; // requerido al usar elementos
+            try {
+                const imgs = req.body.element_images;
+                const elemBody = { image: stripDataUrl(imgs[0]) };
+                if (imgs[1]) elemBody.extra_image_1 = stripDataUrl(imgs[1]);
+                if (imgs[2]) elemBody.extra_image_2 = stripDataUrl(imgs[2]);
+                if (imgs[3]) elemBody.extra_image_3 = stripDataUrl(imgs[3]);
+                console.log('[Element] Creando elemento con', imgs.length, 'imagen(es)...');
+                const elemData = await klingCall('POST', '/v1/elements', token, elemBody);
+                const elementId = elemData.data?.element_id ?? elemData.data?.id;
+                console.log('[Element] element_id:', elementId);
+                if (elementId) body.element_list = [{ element_id: elementId }];
+            } catch(elemErr) {
+                console.warn('[Element] No se pudo crear elemento:', elemErr.message);
+                // Continua sin elemento — la generacion sigue funcionando
             }
         }
 
-        data     = await klingCall('POST', '/v1/videos/motion-control', token, body);
-        taskType = 'motion-control';
+        // v2.6/v3.0 usa /v1/videos/image2video con video_reference (mismo endpoint que v1.x)
+        data     = await klingCall('POST', '/v1/videos/image2video', token, body);
+        taskType = 'image2video';
     }
 
     const taskId = data.data?.task_id;
