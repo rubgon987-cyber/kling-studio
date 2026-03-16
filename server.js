@@ -244,41 +244,19 @@ async function handleMotion(req, res) {
             prompt:                req.body.prompt || '',
             character_orientation: req.body.character_orientation || 'video',
             mode:                  'pro',
-            cfg_scale:             0.5,
+            cfg_scale:             parseFloat(req.body.cfg_scale || '0.5'),
         };
 
-        // Video de referencia (URL directa o base64)
+        // Video de referencia de movimiento
         if (req.body.ref_video_url) {
-            body.video = req.body.ref_video_url;
+            body.video_reference = req.body.ref_video_url;
         } else {
-            body.video = stripDataUrl(req.body.ref_video_data);
+            body.video_reference = stripDataUrl(req.body.ref_video_data);
         }
 
-        // Audio nativo (v3.0)
-        if (req.body.keep_sound !== undefined) {
-            body.keep_original_sound = req.body.keep_sound === true || req.body.keep_sound === 'true';
-        }
+        // Preservar audio del video de referencia
+        body.keep_original_sound = req.body.keep_sound !== 'false' && req.body.keep_sound !== false;
 
-        // Elementos de referencia facial (opcional — no-blocking si el endpoint falla)
-        if (req.body.element_images && req.body.element_images.length > 0) {
-            try {
-                const imgs = req.body.element_images;
-                const elemBody = { image: stripDataUrl(imgs[0]) };
-                if (imgs[1]) elemBody.extra_image_1 = stripDataUrl(imgs[1]);
-                if (imgs[2]) elemBody.extra_image_2 = stripDataUrl(imgs[2]);
-                if (imgs[3]) elemBody.extra_image_3 = stripDataUrl(imgs[3]);
-                console.log('[Element] Creando elemento con', imgs.length, 'imagen(es)...');
-                const elemData = await klingCall('POST', '/v1/elements', token, elemBody);
-                const elementId = elemData.data?.element_id ?? elemData.data?.id;
-                console.log('[Element] element_id:', elementId);
-                if (elementId) body.element_list = [{ element_id: elementId }];
-            } catch(elemErr) {
-                console.warn('[Element] No se pudo crear elemento:', elemErr.message);
-                // Continua sin elemento — la generacion sigue funcionando
-            }
-        }
-
-        // v2.6/v3.0 usa /v1/videos/image2video con video_reference (mismo endpoint que v1.x)
         data     = await klingCall('POST', '/v1/videos/image2video', token, body);
         taskType = 'image2video';
     }
