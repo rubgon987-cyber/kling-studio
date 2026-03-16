@@ -87,6 +87,7 @@ app.get('/api/health', (req, res) => {
 });
 
 app.post('/api/generate', route(handleGenerate));
+app.post('/api/debug-audio', route(handleDebugAudio));
 app.post('/api/lipsync',  route(handleLipSync));
 app.post('/api/motion',   route(handleMotion));
 app.post('/api/multi',    route(handleMulti));
@@ -311,4 +312,40 @@ async function handleMulti(req, res) {
 }
 
 // ─── Start ───────────────────────────────────────────────────────────────────
+// ─── Debug: diagnóstico audio ────────────────────────────────────────────────
+async function handleDebugAudio(req, res) {
+    const [apiKey, apiSecret] = creds(req.body);
+    const token  = makeJWT(apiKey, apiSecret);
+    const model  = req.body.model || 'kling-v3';
+
+    const requestBody = {
+        model_name:   model,
+        prompt:       req.body.prompt || 'A person talking. Room ambience, clear speech.',
+        duration:     '5',
+        aspect_ratio: '16:9',
+        mode:         'pro',
+        cfg_scale:    0.5,
+        enable_audio: true,
+    };
+
+    let klingResponse = null;
+    let klingError    = null;
+    try {
+        const r    = await fetch(KLING_BASE + '/v1/videos/text2video', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body:    JSON.stringify(requestBody),
+        });
+        const txt = await r.text();
+        try { klingResponse = JSON.parse(txt); } catch(_) { klingResponse = txt; }
+    } catch(e) { klingError = e.message; }
+
+    res.json({
+        request_sent_to_kling: requestBody,
+        kling_raw_response:    klingResponse,
+        kling_error:           klingError,
+        api_base:              KLING_BASE,
+    });
+}
+
 app.listen(PORT, () => console.log(`Kling Studio v6 en http://localhost:${PORT}`));
