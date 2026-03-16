@@ -195,12 +195,16 @@ async function handleLipSync(req, res) {
     res.json({ task_id: taskId, task_type: 'lip-sync' });
 }
 
+// Modelos que usan camera_control (sliders). Modelos nuevos usan video_reference.
+const CAMERA_CTRL_MODELS = new Set(['kling-v1-5', 'kling-v1-6']);
+
 async function handleMotion(req, res) {
     const [apiKey, apiSecret] = creds(req.body);
     const token = makeJWT(apiKey, apiSecret);
     if (!req.body.image_data) throw new Error('Imagen no recibida');
 
-    const model = req.body.model || 'kling-v1-5';
+    const model   = req.body.model || 'kling-v1-5';
+    const useCamera = CAMERA_CTRL_MODELS.has(model);
 
     const body = {
         model_name: model,
@@ -209,7 +213,11 @@ async function handleMotion(req, res) {
         duration:   '5',
         mode:       'pro',
         cfg_scale:  0.5,
-        camera_control: {
+    };
+
+    if (useCamera) {
+        // v1.5 / v1.6 — Camera Control con sliders
+        body.camera_control = {
             type:   'simple',
             config: {
                 horizontal: parseFloat(req.body.cam_horizontal || '0'),
@@ -219,14 +227,16 @@ async function handleMotion(req, res) {
                 tilt:       0,
                 pan:        0,
             }
-        }
-    };
+        };
+    }
 
-    // Video de referencia: acepta URL directa o base64
+    // Video de referencia (obligatorio para v2.6/v3, opcional para v1.x)
     if (req.body.ref_video_url) {
         body.video_reference = req.body.ref_video_url;
     } else if (req.body.ref_video_data) {
         body.video_reference = stripDataUrl(req.body.ref_video_data);
+    } else if (!useCamera) {
+        throw new Error('Los modelos Kling 2.6 y 3.0 requieren un video de referencia para Motion Control.');
     }
 
     const data   = await klingCall('POST', '/v1/videos/image2video', token, body);

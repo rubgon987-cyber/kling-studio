@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // KLING STUDIO — app.js v7
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v9';
+window.APP_VERSION = 'v10';
 
 const state = {
     mode: 'text',
@@ -227,6 +227,8 @@ const MOTION_MODEL_NAMES = {
     'kling-v3':   'Kling 3.0',
 };
 
+const CAMERA_CTRL_MODELS = new Set(['kling-v1-5', 'kling-v1-6']);
+
 function updateMotionCost() {
     const model = document.getElementById('motion-model')?.value || 'kling-v1-5';
     const price = MOTION_PRICES[model] || 0.07;
@@ -234,6 +236,12 @@ function updateMotionCost() {
     const note = document.getElementById('motion-cost-note');
     if (el) el.textContent = '$' + price.toFixed(2);
     if (note) note.textContent = (MOTION_MODEL_NAMES[model] || model) + ' · Pro · 5 seg';
+
+    // Mostrar/ocultar sliders de cámara según modelo
+    const camSection = document.getElementById('cam-controls-section');
+    const newModelHint = document.getElementById('new-model-hint');
+    if (camSection) camSection.classList.toggle('hidden', !CAMERA_CTRL_MODELS.has(model));
+    if (newModelHint) newModelHint.classList.toggle('hidden', CAMERA_CTRL_MODELS.has(model));
 }
 
 function setRefVideoMode(mode) {

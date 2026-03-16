@@ -329,7 +329,11 @@
                         <textarea id="motion-prompt" rows="3" placeholder="A landscape slowly revealed by camera movement..."></textarea>
                     </div>
 
-                    <div class="field-group">
+                    <div id="new-model-hint" class="hidden" style="background:#1a2a1a;border:1px solid #2a4a2a;border-radius:8px;padding:12px;margin-bottom:16px;color:#8fbc8f;font-size:13px">
+                        &#127909; <b>Kling 2.6 / 3.0 Motion Control</b> — el movimiento se extrae del video de referencia. Sube o pega la URL del video cuyo movimiento quieres transferir al personaje de la imagen.
+                    </div>
+
+                    <div id="cam-controls-section" class="field-group">
                         <label>Movimiento de camara</label>
                         <div class="camera-grid">
                             <div class="camera-control">
@@ -365,6 +369,7 @@
                             </div>
                         </div>
                     </div>
+                    </div><!-- /cam-controls-section -->
 
                     <div class="cost-box">
                         <div><div class="cost-label">Costo estimado</div><div class="cost-note" id="motion-cost-note">Kling 1.5 · Pro · 5 seg</div></div>
@@ -589,6 +594,6 @@
 
     </main>
 </div>
-<script src="js/app.js?v=9"></script>
+<script src="js/app.js?v=10"></script>
 </body>
 </html>
