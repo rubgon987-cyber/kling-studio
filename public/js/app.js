@@ -257,6 +257,14 @@ async function generateMotion() {
     const imgInput = document.getElementById('motion-image-input');
     if (!imgInput.files[0]) { alert('Sube una imagen base'); return; }
 
+    // Validar tamaño del video de referencia
+    const refVideo = document.getElementById('motion-video-input').files[0];
+    const MAX_VIDEO_MB = 4;
+    if (refVideo && refVideo.size > MAX_VIDEO_MB * 1024 * 1024) {
+        alert(`El video de referencia es demasiado grande (${(refVideo.size/1024/1024).toFixed(1)}MB).\nMáximo permitido: ${MAX_VIDEO_MB}MB.\n\nConsejo: Usa solo la imagen + los controles de cámara — funcionan sin video de referencia.`);
+        return;
+    }
+
     showGenerating('motion-generating', 'motion-status', 'motion-placeholder', 'motion-result-video', 'motion-video-actions');
 
     try {
@@ -268,7 +276,6 @@ async function generateMotion() {
         payload.cam_zoom       = document.getElementById('cam-zoom').value;
         payload.cam_roll       = document.getElementById('cam-roll').value;
 
-        const refVideo = document.getElementById('motion-video-input').files[0];
         if (refVideo) payload.ref_video_data = await fileToBase64(refVideo);
 
         const { taskId, taskType } = await submitTask(payload, 'motion', 'motion-status');
