@@ -72,8 +72,15 @@ function getCredentials(body) {
 // ═══════════════════════════════════════════════════════════════════════════════
 // ROUTES
 // ═══════════════════════════════════════════════════════════════════════════════
+app.use(express.json());
+
 app.get('/api/health', (req, res) => {
-    res.json({ ok: true, node: process.version, uptime: Math.round(process.uptime()) });
+    res.json({ ok: true, node: process.version, uptime: Math.round(process.uptime()), multer: require('multer/package.json').version });
+});
+
+// Endpoint de diagnóstico POST sin archivos
+app.post('/api/ping', (req, res) => {
+    res.json({ ok: true, body: req.body });
 });
 
 // Multer error handler wrapper
