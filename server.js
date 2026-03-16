@@ -88,6 +88,7 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/generate', route(handleGenerate));
 app.post('/api/debug-audio', route(handleDebugAudio));
+app.get('/api/debug-status', route(handleDebugStatus));
 app.post('/api/lipsync',  route(handleLipSync));
 app.post('/api/motion',   route(handleMotion));
 app.post('/api/multi',    route(handleMulti));
@@ -313,6 +314,15 @@ async function handleMulti(req, res) {
 
 // ─── Start ───────────────────────────────────────────────────────────────────
 // ─── Debug: diagnóstico audio ────────────────────────────────────────────────
+async function handleDebugStatus(req, res) {
+    const { task_id, task_type, api_key, api_secret } = req.query;
+    if (!task_id || !api_key || !api_secret) throw new Error('Parametros incompletos');
+    const token = makeJWT(api_key, api_secret);
+    const ep = task_type === 'image2video' ? '/v1/videos/image2video/' : '/v1/videos/text2video/';
+    const data = await klingCall('GET', ep + task_id, token);
+    res.json({ full_kling_response: data });
+}
+
 async function handleDebugAudio(req, res) {
     const [apiKey, apiSecret] = creds(req.body);
     const token  = makeJWT(apiKey, apiSecret);
