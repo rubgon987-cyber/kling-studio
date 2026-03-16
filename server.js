@@ -164,10 +164,11 @@ async function handleGenerate(req, res) {
     }
 
     // Audio nativo — kling-v2-6 y kling-v3 (requiere mode: pro)
-    const audioModels = new Set(['kling-v2-6', 'kling-v3']);
+    const audioModels = new Set(['kling-v2-6', 'kling-v3', 'kling-v3-omni']);
     if (audioModels.has(model) && req.body.enable_audio !== false) {
-        body.enable_audio = true;
-        body.mode = 'pro'; // audio solo funciona en modo pro
+        body.enable_audio   = true;
+        body.generate_audio = true;
+        body.mode = 'pro';
     }
 
     console.log('[handleGenerate] body enviado a Kling:', JSON.stringify({ ...body, image: body.image ? '[base64]' : undefined }));
@@ -269,8 +270,9 @@ async function handleMotion(req, res) {
 
         // Audio: preservar del video de referencia O generar nativo (v2.6 y v3.0)
         body.keep_original_sound = req.body.keep_sound !== 'false' && req.body.keep_sound !== false;
-        if (model === 'kling-v2-6' || model === 'kling-v3') {
-            body.enable_audio = true;
+        if (model === 'kling-v2-6' || model === 'kling-v3' || model === 'kling-v3-omni') {
+            body.enable_audio   = true;
+            body.generate_audio = true;
         }
 
         data     = await klingCall('POST', '/v1/videos/image2video', token, body);
@@ -301,8 +303,9 @@ async function handleMulti(req, res) {
 
     // Audio nativo — kling-v3 soporta enable_audio en multi-imagen
     const multiModel = req.body.model || 'kling-v2-1';
-    if (multiModel === 'kling-v3') {
-        body.enable_audio = true;
+    if (multiModel === 'kling-v3' || multiModel === 'kling-v3-omni') {
+        body.enable_audio   = true;
+        body.generate_audio = true;
         body.mode = 'pro';
     }
 
@@ -335,7 +338,8 @@ async function handleDebugAudio(req, res) {
         aspect_ratio: '16:9',
         mode:         'pro',
         cfg_scale:    0.5,
-        enable_audio: true,
+        enable_audio:   true,
+        generate_audio: true,
     };
 
     let klingResponse = null;

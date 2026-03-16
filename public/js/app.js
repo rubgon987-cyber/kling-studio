@@ -126,7 +126,7 @@ async function generateVideo() {
         }
 
         // Audio nativo (solo kling-v3, campo correcto: enable_audio)
-        if (payload.model === 'kling-v3') {
+        if (payload.model === 'kling-v3' || payload.model === 'kling-v3-omni') {
             const genAudio = document.getElementById('gen-audio');
             payload.enable_audio = genAudio ? genAudio.checked : true;
         }
