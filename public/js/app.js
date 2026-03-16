@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // KLING STUDIO — app.js v7
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v10';
+window.APP_VERSION = 'v11';
 
 const state = {
     mode: 'text',
@@ -237,11 +237,14 @@ function updateMotionCost() {
     if (el) el.textContent = '$' + price.toFixed(2);
     if (note) note.textContent = (MOTION_MODEL_NAMES[model] || model) + ' · Pro · 5 seg';
 
-    // Mostrar/ocultar sliders de cámara según modelo
-    const camSection = document.getElementById('cam-controls-section');
-    const newModelHint = document.getElementById('new-model-hint');
-    if (camSection) camSection.classList.toggle('hidden', !CAMERA_CTRL_MODELS.has(model));
-    if (newModelHint) newModelHint.classList.toggle('hidden', CAMERA_CTRL_MODELS.has(model));
+    // Mostrar/ocultar sliders de cámara y opciones avanzadas según modelo
+    const isOld = CAMERA_CTRL_MODELS.has(model);
+    const camSection    = document.getElementById('cam-controls-section');
+    const newModelHint  = document.getElementById('new-model-hint');
+    const newModelOpts  = document.getElementById('new-model-options');
+    if (camSection)   camSection.classList.toggle('hidden', !isOld);
+    if (newModelHint) newModelHint.classList.toggle('hidden', isOld);
+    if (newModelOpts) newModelOpts.classList.toggle('hidden', isOld);
 }
 
 function setRefVideoMode(mode) {
@@ -318,6 +321,14 @@ async function generateMotion() {
             payload.ref_video_url = refVideoUrl;
         } else if (isFileMode && refVideoFile) {
             payload.ref_video_data = await fileToBase64(refVideoFile);
+        }
+
+        // Opciones de v2.6 / v3.0
+        if (!CAMERA_CTRL_MODELS.has(model)) {
+            payload.character_orientation = document.getElementById('character-orientation').value;
+            payload.keep_sound            = document.getElementById('keep-sound').checked;
+            const elemId = document.getElementById('motion-element-id').value.trim();
+            if (elemId) payload.element_id = elemId;
         }
 
         const { taskId, taskType } = await submitTask(payload, 'motion', 'motion-status');

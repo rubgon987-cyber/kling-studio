@@ -330,7 +330,30 @@
                     </div>
 
                     <div id="new-model-hint" class="hidden" style="background:#1a2a1a;border:1px solid #2a4a2a;border-radius:8px;padding:12px;margin-bottom:16px;color:#8fbc8f;font-size:13px">
-                        &#127909; <b>Kling 2.6 / 3.0 Motion Control</b> — el movimiento se extrae del video de referencia. Sube o pega la URL del video cuyo movimiento quieres transferir al personaje de la imagen.
+                        &#127909; <b>Kling 2.6 / 3.0 Motion Control</b> — transfiere el movimiento del video de referencia al personaje de tu imagen. La duracion del video generado iguala la del video de referencia (max 30 seg).
+                    </div>
+
+                    <!-- Opciones exclusivas de v2.6/v3.0 -->
+                    <div id="new-model-options" class="hidden">
+                        <div class="field-group">
+                            <label>Orientacion del personaje en el video</label>
+                            <select id="character-orientation">
+                                <option value="video">Sigue la orientacion del video (max 30 seg)</option>
+                                <option value="image">Mira hacia la camara — orientacion fija (max 10 seg)</option>
+                            </select>
+                        </div>
+                        <div class="field-group">
+                            <label>Audio nativo <span class="hint">Kling 3.0 genera audio automaticamente</span></label>
+                            <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+                                <input type="checkbox" id="keep-sound" checked style="width:18px;height:18px;accent-color:#7c3aed">
+                                <label for="keep-sound" style="cursor:pointer;color:#ccc">Preservar audio del video de referencia (si lo tiene)</label>
+                            </div>
+                        </div>
+                        <div class="field-group">
+                            <label>Element ID <span class="hint">opcional — mejora consistencia facial en Kling 3.0</span></label>
+                            <input type="text" id="motion-element-id" placeholder="ID numerico (ej: 12345) — crear en app.klingai.com > Elements" style="width:100%;padding:10px;background:#1a1a2e;border:1px solid #333;color:#e0e0e0;border-radius:8px;box-sizing:border-box">
+                            <div class="upload-hint" style="margin-top:4px">Los elementos mejoran la fidelidad facial. Crealos en la plataforma web de Kling y pega el ID aqui.</div>
+                        </div>
                     </div>
 
                     <div id="cam-controls-section" class="field-group">
@@ -594,6 +617,6 @@
 
     </main>
 </div>
-<script src="js/app.js?v=10"></script>
+<script src="js/app.js?v=11"></script>
 </body>
 </html>

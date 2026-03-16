@@ -96,9 +96,10 @@ app.get('/api/status', route(async (req, res) => {
     if (!task_id || !api_key || !api_secret) throw new Error('Parametros incompletos');
     const token = makeJWT(api_key, api_secret);
     const endpointMap = {
-        'text2video':  '/v1/videos/text2video/',
-        'image2video': '/v1/videos/image2video/',
-        'lip-sync':    '/v1/videos/lip-sync/',
+        'text2video':     '/v1/videos/text2video/',
+        'image2video':    '/v1/videos/image2video/',
+        'lip-sync':       '/v1/videos/lip-sync/',
+        'motion-control': '/v1/videos/motion-control/',
     };
     const endpoints = (task_type && endpointMap[task_type])
         ? [endpointMap[task_type]]
@@ -195,7 +196,8 @@ async function handleLipSync(req, res) {
     res.json({ task_id: taskId, task_type: 'lip-sync' });
 }
 
-// Modelos que usan camera_control (sliders). Modelos nuevos usan video_reference.
+// v1.x → camera_control + /v1/videos/image2video
+// v2.6/v3 → video reference + /v1/videos/motion-control
 const CAMERA_CTRL_MODELS = new Set(['kling-v1-5', 'kling-v1-6']);
 
 async function handleMotion(req, res) {
@@ -203,46 +205,73 @@ async function handleMotion(req, res) {
     const token = makeJWT(apiKey, apiSecret);
     if (!req.body.image_data) throw new Error('Imagen no recibida');
 
-    const model   = req.body.model || 'kling-v1-5';
+    const model     = req.body.model || 'kling-v1-5';
     const useCamera = CAMERA_CTRL_MODELS.has(model);
 
-    const body = {
-        model_name: model,
-        image:      stripDataUrl(req.body.image_data),
-        prompt:     req.body.prompt || '',
-        duration:   '5',
-        mode:       'pro',
-        cfg_scale:  0.5,
-    };
+    let data, taskType;
 
     if (useCamera) {
-        // v1.5 / v1.6 — Camera Control con sliders
-        body.camera_control = {
-            type:   'simple',
-            config: {
-                horizontal: parseFloat(req.body.cam_horizontal || '0'),
-                vertical:   parseFloat(req.body.cam_vertical   || '0'),
-                zoom:       parseFloat(req.body.cam_zoom       || '0'),
-                roll:       parseFloat(req.body.cam_roll       || '0'),
-                tilt:       0,
-                pan:        0,
+        // ── Kling v1.5 / v1.6 — Camera Control ─────────────────────────
+        const body = {
+            model_name: model,
+            image:      stripDataUrl(req.body.image_data),
+            prompt:     req.body.prompt || '',
+            duration:   '5',
+            mode:       'pro',
+            cfg_scale:  0.5,
+            camera_control: {
+                type:   'simple',
+                config: {
+                    horizontal: parseFloat(req.body.cam_horizontal || '0'),
+                    vertical:   parseFloat(req.body.cam_vertical   || '0'),
+                    zoom:       parseFloat(req.body.cam_zoom       || '0'),
+                    roll:       parseFloat(req.body.cam_roll       || '0'),
+                    tilt:       0,
+                    pan:        0,
+                }
             }
         };
+        data     = await klingCall('POST', '/v1/videos/image2video', token, body);
+        taskType = 'image2video';
+
+    } else {
+        // ── Kling v2.6 / v3.0 — Motion Control con video de referencia ──
+        if (!req.body.ref_video_url && !req.body.ref_video_data) {
+            throw new Error('Kling 2.6 y 3.0 requieren un video de referencia de movimiento.');
+        }
+        const body = {
+            model_name:            model,
+            image:                 stripDataUrl(req.body.image_data),
+            prompt:                req.body.prompt || '',
+            character_orientation: req.body.character_orientation || 'video',
+            mode:                  'pro',
+            cfg_scale:             0.5,
+        };
+
+        // Video de referencia (URL directa o base64)
+        if (req.body.ref_video_url) {
+            body.video = req.body.ref_video_url;
+        } else {
+            body.video = stripDataUrl(req.body.ref_video_data);
+        }
+
+        // Audio nativo (v3.0)
+        if (req.body.keep_sound !== undefined) {
+            body.keep_original_sound = req.body.keep_sound === true || req.body.keep_sound === 'true';
+        }
+
+        // Element ID para consistencia facial (opcional — se crea desde app.klingai.com)
+        if (req.body.element_id) {
+            body.element_list = [{ element_id: parseInt(req.body.element_id) }];
+        }
+
+        data     = await klingCall('POST', '/v1/videos/motion-control', token, body);
+        taskType = 'motion-control';
     }
 
-    // Video de referencia (obligatorio para v2.6/v3, opcional para v1.x)
-    if (req.body.ref_video_url) {
-        body.video_reference = req.body.ref_video_url;
-    } else if (req.body.ref_video_data) {
-        body.video_reference = stripDataUrl(req.body.ref_video_data);
-    } else if (!useCamera) {
-        throw new Error('Los modelos Kling 2.6 y 3.0 requieren un video de referencia para Motion Control.');
-    }
-
-    const data   = await klingCall('POST', '/v1/videos/image2video', token, body);
     const taskId = data.data?.task_id;
     if (!taskId) throw new Error(data.message || 'Error en Motion Control');
-    res.json({ task_id: taskId, task_type: 'image2video' });
+    res.json({ task_id: taskId, task_type: taskType });
 }
 
 async function handleMulti(req, res) {
