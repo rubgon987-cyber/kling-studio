@@ -51,12 +51,15 @@ function creds(body) {
     return [body.api_key, body.api_secret];
 }
 
-// ─── Route wrapper ────────────────────────────────────────────────────────────
+// ─── Route wrapper — siempre HTTP 200 + JSON, nunca HTML ─────────────────────
 function route(handler) {
     return async (req, res) => {
         res.setHeader('Content-Type', 'application/json');
         try { await handler(req, res); }
-        catch (e) { res.status(500).json({ error: e.message }); }
+        catch (e) {
+            console.error('[ERROR]', e.message);
+            res.json({ error: e.message });
+        }
     };
 }
 
