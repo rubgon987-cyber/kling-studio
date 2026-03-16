@@ -204,7 +204,8 @@ async function handleLipSync(req, res) {
         input.voice_id = req.body.voice_id || 'en_us_001';
     }
 
-    const body = { mode: audioMode, input };
+    input.mode = audioMode;
+    const body = { input };
 
     const data   = await klingCall('POST', '/v1/videos/lip-sync', token, body);
     const taskId = data.data?.task_id;
