@@ -215,17 +215,9 @@ async function handleLipSync(req, res) {
     // Kling lip-sync requiere URLs publicas, no base64
     const input = { mode: audioMode };
 
-    if (lipMode === 'image') {
-        if (!req.body.image_data) throw new Error('Foto no recibida');
-        const raw = req.body.image_data;
-        const ext = getExt(raw, 'jpg');
-        input.video_url = saveBase64(stripDataUrl(raw), ext, req); // Kling solo acepta video_url
-    } else {
-        if (!req.body.video_data) throw new Error('Video no recibido');
-        const raw = req.body.video_data;
-        const ext = getExt(raw, 'mp4');
-        input.video_url = saveBase64(stripDataUrl(raw), ext, req);
-    }
+    // Kling LipSync solo acepta video MP4 (no imagenes estaticas)
+    if (!req.body.video_data) throw new Error('Video MP4 requerido');
+    input.video_url = saveBase64(stripDataUrl(req.body.video_data), 'mp4', req);
 
     if (audioMode === 'audio2video') {
         if (!req.body.audio_data) throw new Error('Audio no recibido');

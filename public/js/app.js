@@ -176,25 +176,23 @@ document.addEventListener('DOMContentLoaded', () => {
 async function generateLipSync() {
     if (!checkApiKey()) return;
 
-    const hasImage = state.lipMode === 'image' && document.getElementById('lip-image-input').files[0];
-    const hasVideo = state.lipMode === 'video' && document.getElementById('lip-video-input').files[0];
+    const videoFile = document.getElementById('lip-video-input').files[0];
     const hasAudio = document.getElementById('lip-audio-input').files[0];
     const audioMode = document.getElementById('lip-audio-mode').value;
     const ttsText = document.getElementById('lip-tts-text').value.trim();
 
-    if (!hasImage && !hasVideo) { alert('Sube una foto o video de la persona'); return; }
+    if (!videoFile) { alert('Sube un video MP4 de la persona'); return; }
     if (audioMode === 'audio2video' && !hasAudio) { alert('Sube el archivo de audio'); return; }
-    if (audioMode === 'text2video' && !ttsText) { alert('Escribe el texto que dir√° la persona'); return; }
+    if (audioMode === 'text2video' && !ttsText) { alert('Escribe el texto que dir· la persona'); return; }
 
     showGenerating('lip-generating', 'lip-status', 'lip-placeholder', 'lip-result-video', 'lip-video-actions');
 
     try {
         const payload = buildBasePayload();
-        payload.lip_mode   = state.lipMode;
+        payload.lip_mode   = 'video';
         payload.audio_mode = audioMode;
 
-        if (state.lipMode === 'image') payload.image_data = await fileToBase64(document.getElementById('lip-image-input').files[0]);
-        else payload.video_data = await fileToBase64(document.getElementById('lip-video-input').files[0]);
+        payload.video_data = await fileToBase64(videoFile);
 
         if (audioMode === 'audio2video') payload.audio_data = await fileToBase64(document.getElementById('lip-audio-input').files[0]);
         else payload.tts_text = ttsText;
