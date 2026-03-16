@@ -1,11 +1,34 @@
 const express = require('express');
 const path    = require('path');
 const crypto  = require('crypto');
+const fs      = require('fs');
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
 
-const KLING_BASE = 'https://api.klingai.com';
+const KLING_BASE   = 'https://api.klingai.com';
+const UPLOADS_DIR  = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+
+// Guarda base64 en disco y devuelve URL publica
+function saveBase64(base64, ext, req) {
+    const buf  = Buffer.from(base64, 'base64');
+    const name = crypto.randomBytes(12).toString('hex') + '.' + ext;
+    fs.writeFileSync(path.join(UPLOADS_DIR, name), buf);
+    // Limpia archivos >1h en background
+    setTimeout(() => {
+        try { const files = fs.readdirSync(UPLOADS_DIR); const lim = Date.now()-3600000; files.forEach(f=>{ try{ if(fs.statSync(path.join(UPLOADS_DIR,f)).mtimeMs<lim) fs.unlinkSync(path.join(UPLOADS_DIR,f)); }catch(_){} }); } catch(_){}
+    }, 100);
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host  = req.headers['x-forwarded-host']  || req.headers.host;
+    return proto + '://' + host + '/uploads/' + name;
+}
+
+// Detecta extension de base64 data-URL
+function getExt(dataUrl, fallback) {
+    const m = dataUrl.match(/^data:(w+)/(w+);/);
+    return m ? m[2].replace('jpeg','jpg') : fallback;
+}
 
 // ─── Body parser: JSON con límite de 50MB para base64 ───────────────────────
 app.use(express.json({ limit: '50mb' }));
@@ -185,27 +208,33 @@ async function handleLipSync(req, res) {
     const lipMode   = req.body.lip_mode   || 'image';
     const audioMode = req.body.audio_mode || 'audio2video';
 
-    // Kling lip-sync API requiere campos dentro de 'input'
-    const input = {};
+    // Kling lip-sync requiere URLs publicas, no base64
+    const input = { mode: audioMode };
 
     if (lipMode === 'image') {
         if (!req.body.image_data) throw new Error('Foto no recibida');
-        input.image = stripDataUrl(req.body.image_data);
+        const raw = req.body.image_data;
+        const ext = getExt(raw, 'jpg');
+        input.image_url = saveBase64(stripDataUrl(raw), ext, req);
     } else {
         if (!req.body.video_data) throw new Error('Video no recibido');
-        input.video = stripDataUrl(req.body.video_data);
+        const raw = req.body.video_data;
+        const ext = getExt(raw, 'mp4');
+        input.video_url = saveBase64(stripDataUrl(raw), ext, req);
     }
 
     if (audioMode === 'audio2video') {
         if (!req.body.audio_data) throw new Error('Audio no recibido');
-        input.audio = stripDataUrl(req.body.audio_data);
+        const raw = req.body.audio_data;
+        const ext = getExt(raw, 'mp3');
+        input.audio_url = saveBase64(stripDataUrl(raw), ext, req);
     } else {
         input.text     = req.body.tts_text || '';
         input.voice_id = req.body.voice_id || 'en_us_001';
     }
 
-    input.mode = audioMode;
     const body = { input };
+    console.log('[lipsync] input fields:', Object.keys(input), '| image_url/video_url:', input.image_url || input.video_url);
 
     const data   = await klingCall('POST', '/v1/videos/lip-sync', token, body);
     const taskId = data.data?.task_id;
