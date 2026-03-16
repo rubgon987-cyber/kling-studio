@@ -294,24 +294,39 @@
                     </div>
 
                     <div class="field-group">
-                        <label>Video de referencia <span class="hint">opcional — sincroniza el movimiento</span></label>
-                        <label class="upload-area">
-                            <span class="upload-icon">&#127902;</span>
-                            <span>Sube el video cuyo movimiento quieres copiar</span>
-                            <span class="upload-hint">MP4, MOV — max 30 seg</span>
-                            <input type="file" id="motion-video-input" accept="video/*" class="file-hidden" onchange="showMotionVideoName(this)">
-                        </label>
-                        <div id="motion-video-name" class="upload-hint" style="margin-top:6px"></div>
+                        <label>Modelo</label>
+                        <select id="motion-model" onchange="updateMotionCost()">
+                            <option value="kling-v1-5">Kling 1.5 — Camera Control clasico</option>
+                            <option value="kling-v1-6">Kling 1.6 — Camera Control</option>
+                            <option value="kling-v2-6">Kling 2.6 — Motion Control</option>
+                            <option value="kling-v3">Kling 3.0 — Motion Control avanzado</option>
+                        </select>
+                    </div>
+
+                    <div class="field-group">
+                        <label>Video de referencia <span class="hint">opcional — sincroniza el movimiento del personaje</span></label>
+                        <div style="display:flex;gap:8px;margin-bottom:10px">
+                            <button id="refvid-btn-url" class="preset-btn active" onclick="setRefVideoMode('url')" style="flex:1">Pegar URL</button>
+                            <button id="refvid-btn-file" class="preset-btn" onclick="setRefVideoMode('file')" style="flex:1">Subir archivo</button>
+                        </div>
+                        <div id="refvid-url-field">
+                            <input type="text" id="motion-video-url" placeholder="https://... URL publica del video MP4" style="width:100%;padding:10px;background:#1a1a2e;border:1px solid #333;color:#e0e0e0;border-radius:8px;box-sizing:border-box">
+                            <div class="upload-hint" style="margin-top:5px">URL directa a MP4. Google Drive: Archivo → Compartir → Cualquier persona con enlace → copia el ID y usa: https://drive.google.com/uc?export=download&id=ID</div>
+                        </div>
+                        <div id="refvid-file-field" class="hidden">
+                            <label class="upload-area">
+                                <span class="upload-icon">&#127902;</span>
+                                <span>Sube el video de referencia</span>
+                                <span class="upload-hint">MP4, MOV — max 5MB · max 30 seg</span>
+                                <input type="file" id="motion-video-input" accept="video/*" class="file-hidden" onchange="showMotionVideoName(this)">
+                            </label>
+                            <div id="motion-video-name" class="upload-hint" style="margin-top:6px"></div>
+                        </div>
                     </div>
 
                     <div class="field-group">
                         <label>Descripcion del video</label>
                         <textarea id="motion-prompt" rows="3" placeholder="A landscape slowly revealed by camera movement..."></textarea>
-                    </div>
-
-                    <div class="field-group">
-                        <label>Modelo y duracion</label>
-                        <div class="info-tag">Kling 1.5 · Pro · 5 seg — unica configuracion compatible con Camera Control</div>
                     </div>
 
                     <div class="field-group">
@@ -352,7 +367,7 @@
                     </div>
 
                     <div class="cost-box">
-                        <div><div class="cost-label">Costo estimado</div><div class="cost-note">Kling 1.5 · Pro · 5 seg</div></div>
+                        <div><div class="cost-label">Costo estimado</div><div class="cost-note" id="motion-cost-note">Kling 1.5 · Pro · 5 seg</div></div>
                         <div class="cost-value" id="motion-cost">$0.07</div>
                     </div>
 
@@ -574,6 +589,6 @@
 
     </main>
 </div>
-<script src="js/app.js?v=8"></script>
+<script src="js/app.js?v=9"></script>
 </body>
 </html>

@@ -200,8 +200,10 @@ async function handleMotion(req, res) {
     const token = makeJWT(apiKey, apiSecret);
     if (!req.body.image_data) throw new Error('Imagen no recibida');
 
+    const model = req.body.model || 'kling-v1-5';
+
     const body = {
-        model_name: 'kling-v1-5',
+        model_name: model,
         image:      stripDataUrl(req.body.image_data),
         prompt:     req.body.prompt || '',
         duration:   '5',
@@ -220,7 +222,12 @@ async function handleMotion(req, res) {
         }
     };
 
-    if (req.body.ref_video_data) body.video_reference = stripDataUrl(req.body.ref_video_data);
+    // Video de referencia: acepta URL directa o base64
+    if (req.body.ref_video_url) {
+        body.video_reference = req.body.ref_video_url;
+    } else if (req.body.ref_video_data) {
+        body.video_reference = stripDataUrl(req.body.ref_video_data);
+    }
 
     const data   = await klingCall('POST', '/v1/videos/image2video', token, body);
     const taskId = data.data?.task_id;

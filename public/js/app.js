@@ -1,7 +1,7 @@
 // ══════════════════════════════════════════════
 // KLING STUDIO — app.js v7
 // ══════════════════════════════════════════════
-window.APP_VERSION = 'v8';
+window.APP_VERSION = 'v9';
 
 const state = {
     mode: 'text',
@@ -214,10 +214,33 @@ function updateCamLabel(sliderId, labelId) {
     updateMotionCost();
 }
 
+const MOTION_PRICES = {
+    'kling-v1-5': 0.07,
+    'kling-v1-6': 0.14,
+    'kling-v2-6': 0.28,
+    'kling-v3':   0.42,
+};
+const MOTION_MODEL_NAMES = {
+    'kling-v1-5': 'Kling 1.5',
+    'kling-v1-6': 'Kling 1.6',
+    'kling-v2-6': 'Kling 2.6',
+    'kling-v3':   'Kling 3.0',
+};
+
 function updateMotionCost() {
-    // Motion Control fijo: kling-v1-5, pro, 5s — $0.07
+    const model = document.getElementById('motion-model')?.value || 'kling-v1-5';
+    const price = MOTION_PRICES[model] || 0.07;
     const el = document.getElementById('motion-cost');
-    if (el) el.textContent = '$0.07';
+    const note = document.getElementById('motion-cost-note');
+    if (el) el.textContent = '$' + price.toFixed(2);
+    if (note) note.textContent = (MOTION_MODEL_NAMES[model] || model) + ' · Pro · 5 seg';
+}
+
+function setRefVideoMode(mode) {
+    document.getElementById('refvid-btn-url').classList.toggle('active', mode === 'url');
+    document.getElementById('refvid-btn-file').classList.toggle('active', mode === 'file');
+    document.getElementById('refvid-url-field').classList.toggle('hidden', mode !== 'url');
+    document.getElementById('refvid-file-field').classList.toggle('hidden', mode !== 'file');
 }
 
 function setMotionDuration(d) {
@@ -258,11 +281,16 @@ async function generateMotion() {
     const imgInput = document.getElementById('motion-image-input');
     if (!imgInput.files[0]) { alert('Sube una imagen base'); return; }
 
-    // Validar tamaño del video de referencia
-    const refVideo = document.getElementById('motion-video-input').files[0];
-    const MAX_VIDEO_MB = 4;
-    if (refVideo && refVideo.size > MAX_VIDEO_MB * 1024 * 1024) {
-        alert(`El video de referencia es demasiado grande (${(refVideo.size/1024/1024).toFixed(1)}MB).\nMáximo permitido: ${MAX_VIDEO_MB}MB.\n\nConsejo: Usa solo la imagen + los controles de cámara — funcionan sin video de referencia.`);
+    const model = document.getElementById('motion-model').value;
+
+    // Video de referencia: URL o archivo
+    const refVideoUrl  = document.getElementById('motion-video-url').value.trim();
+    const refVideoFile = document.getElementById('motion-video-input')?.files[0];
+    const isFileMode   = !document.getElementById('refvid-file-field').classList.contains('hidden');
+
+    const MAX_VIDEO_MB = 5;
+    if (isFileMode && refVideoFile && refVideoFile.size > MAX_VIDEO_MB * 1024 * 1024) {
+        alert(`El video es demasiado grande (${(refVideoFile.size/1024/1024).toFixed(1)}MB). Maximo: ${MAX_VIDEO_MB}MB.\nUsa la opcion "Pegar URL" para videos grandes.`);
         return;
     }
 
@@ -271,19 +299,24 @@ async function generateMotion() {
     try {
         const payload = buildBasePayload();
         payload.image_data     = await fileToBase64(imgInput.files[0]);
+        payload.model          = model;
         payload.prompt         = document.getElementById('motion-prompt').value;
         payload.cam_horizontal = document.getElementById('cam-horizontal').value;
         payload.cam_vertical   = document.getElementById('cam-vertical').value;
         payload.cam_zoom       = document.getElementById('cam-zoom').value;
         payload.cam_roll       = document.getElementById('cam-roll').value;
 
-        if (refVideo) payload.ref_video_data = await fileToBase64(refVideo);
+        if (!isFileMode && refVideoUrl) {
+            payload.ref_video_url = refVideoUrl;
+        } else if (isFileMode && refVideoFile) {
+            payload.ref_video_data = await fileToBase64(refVideoFile);
+        }
 
         const { taskId, taskType } = await submitTask(payload, 'motion', 'motion-status');
         const url = await pollStatus(taskId, taskType, 'motion-status');
 
         showResult('motion-result-video', url, 'motion-generating', 'motion-video-actions');
-        saveHistory(url, document.getElementById('motion-prompt').value || 'Motion Control', 'kling-v1-5', 5, 'Motion');
+        saveHistory(url, document.getElementById('motion-prompt').value || 'Motion Control', model, 5, 'Motion');
 
     } catch(e) {
         handleError(e, 'motion-generating', 'motion-placeholder');
